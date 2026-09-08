@@ -1,0 +1,16 @@
+{
+  "name": "kaggle-skill",
+  "owner": { "name": "cryanskl" },
+  "metadata": {
+    "description": "Marketplace for the Agentic Kaggle skill plugin."
+  },
+  "plugins": [
+    {
+      "name": "kaggle-skill",
+      "source": "./",
+      "description": "Agentic Kaggle skill: end-to-end competition workflow for scored Kaggle submissions.",
+      "version": "1.0.0",
+      "category": "data-science"
+    }
+  ]
+}

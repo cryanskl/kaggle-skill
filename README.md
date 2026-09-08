@@ -39,6 +39,7 @@ Including: **RL Game AI** | **Audio Classification** | **LLM Reasoning** | Multi
 
 | Agent | Status 状态 | Notes 说明 |
 | --- | --- | --- |
+| Claude Code | First-class 一等支持 | Install as a plugin from this marketplace. 通过本插件市场安装。 |
 | Codex | First-class 一等支持 | Uses `SKILL.md`, `agents/openai.yaml`, `references/`, and `scripts/`. |
 | Hermes | Supported 支持 | Uses the same skill folder. Hermes-era examples remain in `references/research/`. |
 
@@ -92,6 +93,21 @@ Core capabilities:
 
 ## Install / 安装
 
+### Claude Code (plugin marketplace)
+
+This repository is a Claude Code plugin marketplace. Add it and install the plugin:
+
+本仓库是一个 Claude Code 插件市场。添加后即可安装插件：
+
+```text
+/plugin marketplace add cryanskl/kaggle-skill
+/plugin install kaggle-skill@kaggle-skill
+```
+
+The `agentic-kaggle-skill` skill is then available automatically, or invoke it with `/kaggle-skill:agentic-kaggle-skill`.
+
+安装后 `agentic-kaggle-skill` 会自动可用，也可以用 `/kaggle-skill:agentic-kaggle-skill` 显式调用。
+
 ### Codex
 
 Install as a user-level Codex skill:
@@ -100,8 +116,8 @@ Install as a user-level Codex skill:
 
 ```bash
 mkdir -p ~/.agents/skills
-git clone https://github.com/FrankS-IntelLab/agentic-kaggle-skill.git \
-  ~/.agents/skills/agentic-kaggle-skill
+git clone https://github.com/cryanskl/kaggle-skill.git /tmp/kaggle-skill && \
+  cp -r /tmp/kaggle-skill/skills/agentic-kaggle-skill ~/.agents/skills/agentic-kaggle-skill
 ```
 
 Restart Codex if the skill does not appear immediately. Invoke it explicitly with:
@@ -129,8 +145,8 @@ Install the whole skill folder so references and scripts are available:
 
 ```bash
 mkdir -p ~/.hermes/skills/data-science
-git clone https://github.com/FrankS-IntelLab/agentic-kaggle-skill.git \
-  ~/.hermes/skills/data-science/agentic-kaggle
+git clone https://github.com/cryanskl/kaggle-skill.git /tmp/kaggle-skill && \
+  cp -r /tmp/kaggle-skill/skills/agentic-kaggle-skill ~/.hermes/skills/data-science/agentic-kaggle
 ```
 
 Then ask Hermes to use the agentic Kaggle skill for competition work.
@@ -144,42 +160,47 @@ Most scripts use only the Python standard library. `scripts/make_folds.py` requi
 大部分脚本只依赖 Python 标准库。`scripts/make_folds.py` 需要 pandas 和 numpy；推荐安装 scikit-learn 以使用标准切分器。
 
 ```bash
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r skills/agentic-kaggle-skill/requirements.txt
 ```
 
 ## Repository Layout / 仓库结构
 
 ```text
-agentic-kaggle-skill/
-├── SKILL.md
-├── agents/
-│   └── openai.yaml
-├── references/
-│   ├── method-map.md
-│   ├── information-sharing-policy.md
-│   ├── competition-intel.md
-│   ├── cross-validation-and-metrics.md
-│   ├── tabular-workflow.md
-│   ├── image-text-workflow.md
-│   ├── kaggle-code-competition-pipeline.md
-│   ├── advanced-notebook-architecture.md
-│   ├── kaggle-offload.md
-│   ├── kaggle-pipeline-datasets.md
-│   ├── submission-endgame.md
-│   ├── code-competition-debugging.md
-│   ├── ensembling-and-reproducibility.md
-│   └── research/
-├── scripts/
-│   ├── scaffold_competition.py
-│   ├── make_folds.py
-│   ├── prepare_kaggle_kernel.py
-│   └── prepare_kaggle_dataset.py
-├── examples/
-│   ├── rl-game-case-study.md
-│   └── audio-classification-case-study.md
-├── requirements.txt
+kaggle-skill/
+├── .claude-plugin/
+│   ├── plugin.json
+│   └── marketplace.json
 ├── README.md
-└── LICENSE
+├── LICENSE
+└── skills/
+    └── agentic-kaggle-skill/
+        ├── SKILL.md
+        ├── requirements.txt
+        ├── agents/
+        │   └── openai.yaml
+        ├── references/
+        │   ├── method-map.md
+        │   ├── information-sharing-policy.md
+        │   ├── competition-intel.md
+        │   ├── cross-validation-and-metrics.md
+        │   ├── tabular-workflow.md
+        │   ├── image-text-workflow.md
+        │   ├── kaggle-code-competition-pipeline.md
+        │   ├── advanced-notebook-architecture.md
+        │   ├── kaggle-offload.md
+        │   ├── kaggle-pipeline-datasets.md
+        │   ├── submission-endgame.md
+        │   ├── code-competition-debugging.md
+        │   ├── ensembling-and-reproducibility.md
+        │   └── research/
+        ├── scripts/
+        │   ├── scaffold_competition.py
+        │   ├── make_folds.py
+        │   ├── prepare_kaggle_kernel.py
+        │   └── prepare_kaggle_dataset.py
+        └── examples/
+            ├── rl-game-case-study.md
+            └── audio-classification-case-study.md
 ```
 
 ## Case Studies / 案例研究
@@ -191,7 +212,7 @@ agentic-kaggle-skill/
 | Feature completeness 功能完整性 | Top agents used much richer decision logic; simplified agents underperformed. 顶级 agent 使用更完整的决策逻辑，简化版表现明显较弱。 |
 | Time budget 时间预算 | Strict turn limits require profiling after each change. 严格回合限制要求每次改动后都做性能分析。 |
 
-[Full case study / 完整案例](examples/rl-game-case-study.md)
+[Full case study / 完整案例](skills/agentic-kaggle-skill/examples/rl-game-case-study.md)
 
 ### Audio Classification Competition / 音频分类竞赛
 
@@ -200,7 +221,7 @@ agentic-kaggle-skill/
 | Hybrid ensemble 混合集成 | Temporal model plus SED-style models can improve robustness. 时序模型加 SED 风格模型可提升稳健性。 |
 | Silent failures 静默失败 | Log exceptions during feature extraction and inference. 特征提取和推理阶段需要记录异常。 |
 
-[Full case study / 完整案例](examples/audio-classification-case-study.md)
+[Full case study / 完整案例](skills/agentic-kaggle-skill/examples/audio-classification-case-study.md)
 
 ## Design Notes / 设计说明
 

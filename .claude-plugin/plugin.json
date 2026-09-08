@@ -1,0 +1,10 @@
+{
+  "name": "kaggle-skill",
+  "version": "1.0.0",
+  "description": "Agentic Kaggle skill: end-to-end competition workflow for validation, modeling, Kaggle execution, debugging, ensembling, and scored submissions.",
+  "author": { "name": "cryanskl" },
+  "repository": "https://github.com/cryanskl/kaggle-skill",
+  "license": "MIT",
+  "keywords": ["kaggle", "machine-learning", "competition", "data-science"],
+  "skills": "./skills"
+}

@@ -75,7 +75,15 @@ def main() -> None:
     parser.add_argument("--slug", required=True, help="Dataset slug")
     parser.add_argument("--title", required=True, help="Dataset title")
     parser.add_argument("--description", required=True, help="Dataset description")
-    parser.add_argument("--license", default="CC0-1.0", help="Kaggle license name")
+    parser.add_argument(
+        "--license",
+        default="other",
+        help=(
+            "Kaggle license name. Defaults to 'other' because competition-derived "
+            "artifacts are usually not redistributable; set an open license only "
+            "when the competition rules and data license allow it"
+        ),
+    )
     parser.add_argument("--source-run-id", default="", help="Source experiment or run ID")
     parser.add_argument("--source-kernel", default="", help="Source kernel ref, e.g. user/kernel")
     parser.add_argument(
@@ -92,7 +100,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    out_dir = Path(args.output).expanduser().resolve()
+    out_dir = Path(args.output).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
 
     slug = _slugify(args.slug)
@@ -141,22 +149,24 @@ def main() -> None:
     )
 
     visibility = " --public" if args.public else ""
+    dataset_path = args.output
     commands = f"""\
     # Keep artifact datasets private unless the competition rules, data license,
     # and third-party IP checks allow public redistribution.
+    # Run these from the directory where --output was given as {dataset_path}.
 
     # Create the dataset the first time.
-    kaggle datasets create -p {out_dir} -t -r zip{visibility}
+    kaggle datasets create -p {dataset_path} -t -r zip{visibility}
 
     # Create a new version after replacing or adding artifact files.
-    kaggle datasets version -p {out_dir} -m {json.dumps(args.version_notes)} -t -r zip
+    kaggle datasets version -p {dataset_path} -m {json.dumps(args.version_notes)} -t -r zip
 
     # Check processing status.
     kaggle datasets status {handle}
 
     # Python alternative inside notebooks/scripts.
     # import kagglehub
-    # kagglehub.dataset_upload({json.dumps(handle)}, {json.dumps(str(out_dir))}, version_notes={json.dumps(args.version_notes)})
+    # kagglehub.dataset_upload({json.dumps(handle)}, {json.dumps(str(dataset_path))}, version_notes={json.dumps(args.version_notes)})
     """
     (out_dir / "DATASET_COMMANDS.txt").write_text(
         textwrap.dedent(commands),

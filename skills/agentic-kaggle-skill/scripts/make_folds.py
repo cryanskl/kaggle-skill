@@ -358,6 +358,12 @@ def main() -> None:
     df.to_csv(output_path, index=False)
     counts = df[args.fold_col].value_counts().sort_index().to_dict()
     print(f"Wrote {output_path} using strategy={strategy}, fold_counts={counts}")
+    if strategy == "time" and -1 in counts:
+        print(
+            f"Note: {counts[-1]} earliest rows have {args.fold_col}=-1. Time folds use "
+            "expanding windows, so the first block is training-only and is never a "
+            "validation fold."
+        )
 
 
 if __name__ == "__main__":

@@ -41,7 +41,7 @@ Including: **RL Game AI** | **Audio Classification** | **LLM Reasoning** | Multi
 | --- | --- | --- |
 | Claude Code | First-class 一等支持 | Install as a plugin from this marketplace. 通过本插件市场安装。 |
 | Codex | First-class 一等支持 | Uses `SKILL.md`, `agents/openai.yaml`, `references/`, and `scripts/`. |
-| Hermes | Supported 支持 | Uses the same skill folder. Hermes-era examples remain in `references/research/`. |
+| Hermes | Supported 支持 | Uses the same skill folder. Hermes-era notes are kept in `docs/research/`. |
 
 ## Canonical Skill Identity / 统一 Skill 名称
 
@@ -172,6 +172,11 @@ kaggle-skill/
 │   └── marketplace.json
 ├── README.md
 ├── LICENSE
+├── docs/                          # historical notes, not loaded by the skill
+│   ├── examples/
+│   │   ├── rl-game-case-study.md
+│   │   └── audio-classification-case-study.md
+│   └── research/
 └── skills/
     └── agentic-kaggle-skill/
         ├── SKILL.md
@@ -185,22 +190,17 @@ kaggle-skill/
         │   ├── cross-validation-and-metrics.md
         │   ├── tabular-workflow.md
         │   ├── image-text-workflow.md
-        │   ├── kaggle-code-competition-pipeline.md
-        │   ├── advanced-notebook-architecture.md
         │   ├── kaggle-offload.md
-        │   ├── kaggle-pipeline-datasets.md
-        │   ├── submission-endgame.md
-        │   ├── code-competition-debugging.md
+        │   ├── kaggle-pipeline.md
+        │   ├── advanced-notebook-architecture.md
         │   ├── ensembling-and-reproducibility.md
-        │   └── research/
-        ├── scripts/
-        │   ├── scaffold_competition.py
-        │   ├── make_folds.py
-        │   ├── prepare_kaggle_kernel.py
-        │   └── prepare_kaggle_dataset.py
-        └── examples/
-            ├── rl-game-case-study.md
-            └── audio-classification-case-study.md
+        │   ├── submission-endgame.md
+        │   └── code-competition-debugging.md
+        └── scripts/
+            ├── scaffold_competition.py
+            ├── make_folds.py
+            ├── prepare_kaggle_kernel.py
+            └── prepare_kaggle_dataset.py
 ```
 
 ## Case Studies / 案例研究
@@ -212,7 +212,7 @@ kaggle-skill/
 | Feature completeness 功能完整性 | Top agents used much richer decision logic; simplified agents underperformed. 顶级 agent 使用更完整的决策逻辑，简化版表现明显较弱。 |
 | Time budget 时间预算 | Strict turn limits require profiling after each change. 严格回合限制要求每次改动后都做性能分析。 |
 
-[Full case study / 完整案例](skills/agentic-kaggle-skill/examples/rl-game-case-study.md)
+[Full case study / 完整案例](docs/examples/rl-game-case-study.md)
 
 ### Audio Classification Competition / 音频分类竞赛
 
@@ -221,7 +221,7 @@ kaggle-skill/
 | Hybrid ensemble 混合集成 | Temporal model plus SED-style models can improve robustness. 时序模型加 SED 风格模型可提升稳健性。 |
 | Silent failures 静默失败 | Log exceptions during feature extraction and inference. 特征提取和推理阶段需要记录异常。 |
 
-[Full case study / 完整案例](skills/agentic-kaggle-skill/examples/audio-classification-case-study.md)
+[Full case study / 完整案例](docs/examples/audio-classification-case-study.md)
 
 ## Design Notes / 设计说明
 
@@ -233,9 +233,9 @@ kaggle-skill/
 
 `agents/openai.yaml` 是面向 Codex 的 UI 元数据，不分叉工作流，只改善该 skill 在 Codex 中的展示与调用体验。
 
-`references/` contains detailed workflow guidance loaded only when relevant. The `references/research/` folder preserves earlier Hermes-era lessons, troubleshooting notes, automation patterns, and case-specific insights.
+`references/` contains detailed workflow guidance loaded only when relevant. The top-level `docs/` folder preserves earlier Hermes-era lessons, troubleshooting notes, automation patterns, and case studies; the useful generic lessons have been folded into `references/`, so `docs/` is not loaded by the skill.
 
-`references/` 存放按需加载的详细流程说明。`references/research/` 保留早期 Hermes 阶段的经验、故障排除、自动化模式和具体案例洞察。
+`references/` 存放按需加载的详细流程说明。顶层 `docs/` 保留早期 Hermes 阶段的经验、故障排除、自动化模式和案例研究；其中通用的经验已并入 `references/`，skill 运行时不会加载 `docs/`。
 
 `scripts/` contains repeatable utilities for scaffolding a Kaggle project, making folds, preparing Kaggle kernels, and preparing private Kaggle artifact datasets.
 
@@ -297,8 +297,8 @@ Found a new pattern or solved a tricky error?
 
 1. Fork the repo.
    Fork 仓库。
-2. Add your insight to `references/research/`, `references/`, or `examples/`.
-   将你的洞察添加到 `references/research/`、`references/` 或 `examples/`。
+2. Add your insight to `skills/agentic-kaggle-skill/references/` (loaded by the skill) or `docs/` (background notes).
+   将你的洞察添加到 `skills/agentic-kaggle-skill/references/`（skill 会加载）或 `docs/`（背景资料）。
 3. Submit a pull request.
    提交 PR。
 

@@ -23,7 +23,7 @@ Use a shallow DAG:
 3. Artifact datasets: each useful producer output is saved/versioned as a private Kaggle dataset; trained producer models should be exported with checkpoints, configs, OOF predictions, and manifests.
 4. Consumer notebook/script: attaches producer datasets, loads models from `/kaggle/input/...`, validates artifacts, blends/stacks/postprocesses, writes final submission, submits for scoring, and records score/status.
 
-Keep one wave to fewer than five producer notebooks unless the user approves more. Prefer another wave after reviewing OOF artifacts over launching a sprawling graph.
+Prefer a second wave after reviewing OOF artifacts over launching a sprawling graph (wave size limits are in `kaggle-pipeline.md`).
 
 ## Producer Ideas
 
@@ -53,17 +53,7 @@ Reject or quarantine producers with suspicious train/valid gaps, schema drift, u
 
 ## Consumer Responsibilities
 
-The final consumer is the only scoring boundary for the full architecture unless the user asks otherwise.
-
-It must:
-
-- Attach producer-created dataset handles through `dataset_sources`.
-- Load trained producer models from attached Kaggle datasets, not from local paths or rerunning upstream notebooks.
-- Validate every artifact manifest, schema, row count, ID order, fold coverage, model version, and prediction column.
-- Compare model correlation/diversity before blending or stacking.
-- Use OOF predictions for blend weights, stackers, thresholds, calibration, and postprocessing.
-- Write final OOF/test predictions, blend/stack report, submission, `pipeline_manifest.json`, and `submission_receipt.json`.
-- Submit the final artifact or kernel/version to Kaggle and retrieve score/status.
+The final consumer is the only scoring boundary for the full architecture unless the user asks otherwise. Its requirements (attached datasets, manifest validation, OOF-only blending, required outputs, submission) are listed once in `kaggle-pipeline.md`, Final Consumer Requirements; the safe blending procedure is in `ensembling-and-reproducibility.md`.
 
 ## Practical Escalation Order
 

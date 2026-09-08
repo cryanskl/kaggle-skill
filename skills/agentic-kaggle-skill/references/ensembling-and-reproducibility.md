@@ -43,20 +43,30 @@ For each run, save:
 - Feature list and categorical column list.
 - Model files or checkpoints.
 - Submission file.
-- Notes on public LB result if submitted.
 - Kaggle submission receipt/status and public score after scoring.
 - Remote run logs and downloaded Kaggle outputs when compute was offloaded.
 - Pipeline manifests and intermediate Kaggle dataset handles/versions for multi-notebook runs.
 
-## Blending
+## Safe Blending Workflow
 
-Start with simple averaging for similar probability outputs. Try weighted averages when OOF scores and error correlations justify it.
+Ensembles help when the members' errors are uncorrelated; they hurt when members are near-duplicates, when a weak member dilutes a strong one, or when weights are tuned on the public leaderboard.
 
-For rank-like metrics or differently calibrated models, rank averaging can be safer than raw averaging.
+1. Score each candidate independently on OOF: mean, fold std, and where it fails.
+2. Check pairwise OOF prediction correlation (Pearson or Spearman). Above roughly 0.90, treat the pair as one source and keep the stronger member; also check error overlap on the validation rows.
+3. Start from the best single model. The blend must beat it on OOF or it is not used.
+4. Add candidates greedily: add the next best, re-score the OOF blend, keep it only if the score improves; a member that hurts every combination is dropped regardless of its standalone score.
+5. Search weights on OOF only, with a small search space. Never tune weights on public LB scores.
+6. Submit the blend only if it beats the best single model on OOF; otherwise submit the single model.
 
-Use OOF predictions to search blend weights. Keep the search small enough to avoid fitting noise.
+Method choice:
 
-For sophisticated notebook architectures, keep a model-correlation or disagreement report in the final consumer. A producer that is not best alone can still be valuable if it improves the OOF blend without increasing leakage risk.
+- Simple average: diverse members of similar quality.
+- Weighted average: members of different quality.
+- Rank average: rank-based metrics such as AUC, or members with different calibration.
+- Geometric mean: probabilities that need mild recalibration.
+- Stacking: many members and enough validation data (see below).
+
+Two or three diverse members usually beat ten correlated ones. Keep a model-correlation or disagreement report in the final consumer for staged architectures.
 
 ## Stacking
 
@@ -67,9 +77,9 @@ Stack only with OOF base predictions:
 3. Average each base model's test predictions across folds for the level-1 test matrix.
 4. Train the stacker on the level-1 train matrix using the same or a nested validation plan.
 
-Good stackers are often simple: logistic regression, ridge, linear models, shallow boosting, or constrained weighted averages. Complex stackers can overfit quickly.
+Good stackers are often simple: logistic regression, ridge, linear models, shallow boosting, or constrained weighted averages. Complex stackers overfit quickly.
 
-Blending is stacking with a holdout set instead of full OOF folds. Use it when runtime is limited, but prefer OOF stacking when data is scarce.
+Blending with a holdout set is stacking with one split instead of full OOF folds. Use it when runtime is limited, but prefer OOF stacking when data is scarce.
 
 ## Reproducibility Guardrails
 

@@ -10,28 +10,25 @@ Prefer Kaggle notebooks/scripts instead of local execution for:
 - Jobs requiring GPU, high-memory GPU, TPU, or Kaggle-mounted competition data.
 - Full-fold training after a small local smoke test passes.
 - Any run where local RAM/VRAM pressure risks killing the session or slowing the user's machine.
+- Simulation/game competitions whose environment is missing from the local `kaggle-environments` package (`Unknown Environment Specification`): test agents in a Kaggle notebook, or install the package from GitHub source (`pip install -e /path/to/kaggle-environments --no-deps`) when local iteration matters.
 
 Do a tiny local smoke test first when possible: imports, path checks, one batch, one fold subset, metric function, output file names, and submission schema.
 
 ## Kaggle Kernel Flow
 
-1. Ensure Kaggle CLI auth is available. If `kaggle` is missing, install or ask the user to install/authenticate it before remote execution.
-2. Create a kernel folder with source code and `kernel-metadata.json`. Use `scripts/prepare_kaggle_kernel.py` for a starter folder.
+1. Ensure Kaggle CLI auth is available. If `kaggle` is missing, install it or ask the user to install/authenticate it before remote execution.
+2. Create a kernel folder with `kernel-metadata.json` and a single self-contained code file. Use `scripts/prepare_kaggle_kernel.py` for a starter folder. `kaggle kernels push` uploads only the code file named in the metadata; helper modules must be inlined or attached as a dataset or utility script.
 3. Read `information-sharing-policy.md` before making any Kaggle kernel, dataset, model, or downloaded output public.
 4. Set `competition_sources`, `dataset_sources`, `kernel_sources`, or `model_sources` in metadata so Kaggle can mount required inputs.
-5. Request an accelerator in metadata and/or push command when needed.
+5. Request an accelerator in metadata and/or the push command when needed.
 6. Push and run the kernel.
 7. Poll the kernel status until complete or failed.
 8. Download output files.
 9. Read `experiment_log.json`, `metrics.jsonl`, and the artifact manifest.
-10. If this is the final consumer or final single-kernel run, submit the produced file or kernel/version to Kaggle for scoring.
-11. Retrieve the Kaggle submission status/score before deciding the work is complete.
-12. If scoring fails with a vague code-competition error, read `code-competition-debugging.md`, patch the final kernel, rerun, and resubmit until scored or concretely blocked.
+10. If this is the final consumer or final single-kernel run, submit the produced file or kernel/version to Kaggle for scoring, then retrieve the submission status/score before deciding the work is complete.
+11. If scoring fails with a vague code-competition error, read `code-competition-debugging.md`, patch the final kernel, rerun, and resubmit until scored or concretely blocked.
 
-For complex architectures, do not make one giant notebook responsible for every step. Split the run into a small wave of independent producer kernels, then a final consumer kernel. Producer outputs should be either:
-
-- Published as private Kaggle datasets when they need durability, versioning, reuse across experiments, or clean sharing between multiple consumers. This includes the common pattern where a producer notebook's `/kaggle/working` output is saved/versioned as a dataset, then another notebook consumes that dataset as an attached input.
-- Attached directly to the final kernel with `kernel_sources` only when the notebook-output dependency is short-lived and does not need dataset versioning.
+For staged architectures (several producers feeding one consumer through private artifact datasets), follow `kaggle-pipeline.md`.
 
 Useful commands:
 
@@ -69,25 +66,13 @@ Kaggle kernel metadata should include:
 
 - `id`: `USERNAME/KERNEL_SLUG`.
 - `title`: human-readable run name.
-- `code_file`: script or notebook file.
+- `code_file`: the `.py` script or `.ipynb` notebook.
 - `language`: `python`.
 - `kernel_type`: `script` or `notebook`.
 - `is_private`: usually `true` for competition experiments; make public only after a rules, license, and IP check.
-- `enable_gpu`: `true` when using GPU.
+- `enable_gpu` / `enable_tpu`: `true` when using that accelerator.
+- `enable_internet`: `false` for anything that will be scored; `true` only for setup notebooks that download wheels or weights.
 - `machine_shape`: accelerator ID such as `NvidiaTeslaT4`, if available for the account/competition.
 - `competition_sources`, `dataset_sources`, `kernel_sources`, and `model_sources` as needed.
 
-If a competition requires Kaggle Code submission, keep inference code inside the kernel and write the final submission artifact in the expected location.
-
 Do not treat a successful `kaggle kernels push` as the end of the work. The end is the processed Kaggle competition submission and retrieved score/status, or a documented external blocker after the debugging loop has been attempted.
-
-## KaggleHub In Python
-
-Use `kagglehub` inside notebooks/scripts when Python-level resource access is simpler than shelling out:
-
-- Download competition files with `kagglehub.competition_download`.
-- Download datasets with `kagglehub.dataset_download` or load files directly with `kagglehub.dataset_load` adapters.
-- Download prior notebook outputs with `kagglehub.notebook_output_download`.
-- Upload/version intermediate artifact datasets with `kagglehub.dataset_upload`.
-
-Prefer explicit output directories and force flags only when the run is intentionally overwriting cached or downloaded artifacts.

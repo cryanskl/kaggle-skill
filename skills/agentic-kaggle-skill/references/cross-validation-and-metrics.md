@@ -30,6 +30,7 @@ Use time-aware validation when chronological leakage is possible. Sort by time a
 - Scaling, imputation, SVD/PCA, vectorizers, oversampling, feature selection, and threshold search must be trained only on training-fold data when they learn from data.
 - Augment images only after splitting; never let augmented variants cross folds.
 - Near-duplicate rows should stay in the same fold or be removed.
+- Check whether test rows (IDs, prompts, texts, image hashes) also appear in train. Exact or near matches change the approach from modeling to lookup and are common in text/QA competitions; record the overlap rate either way.
 - If CV and public LB disagree, audit split choice, metric implementation, submission format, and train/test drift before chasing the leaderboard.
 
 ## Metric Selection

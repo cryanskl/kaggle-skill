@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Create a Kaggle kernel folder with retrievable experiment logs."""
+"""Create a self-contained Kaggle kernel folder with retrievable experiment logs.
+
+`kaggle kernels push` uploads only the code file named in kernel-metadata.json,
+so the logging helper is embedded in the generated script or notebook instead
+of being shipped as a sidecar module.
+"""
 
 from __future__ import annotations
 
@@ -10,9 +15,7 @@ import textwrap
 from pathlib import Path
 
 
-LOGGER_CODE = r'''"""Small logging helper for Kaggle experiment outputs."""
-
-from __future__ import annotations
+LOGGER_CODE = r'''"""Small logging helper for Kaggle experiment outputs (embedded)."""
 
 import json
 import os
@@ -24,7 +27,7 @@ from pathlib import Path
 
 
 class ExperimentLogger:
-    def __init__(self, run_id: str, output_dir: str | Path = ".") -> None:
+    def __init__(self, run_id, output_dir="."):
         self.run_id = run_id
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -37,7 +40,7 @@ class ExperimentLogger:
             "platform": platform.platform(),
             "python": platform.python_version(),
             "kaggle_kernel_run_type": os.environ.get("KAGGLE_KERNEL_RUN_TYPE"),
-            "kaggle_url_base": os.environ.get("KAGGLE_URL_BASE"),
+            "kaggle_is_competition_rerun": os.environ.get("KAGGLE_IS_COMPETITION_RERUN"),
             "git_commit": self._git_commit(),
             "config": {},
             "metrics": {},
@@ -46,7 +49,7 @@ class ExperimentLogger:
         }
         self.flush()
 
-    def _git_commit(self) -> str | None:
+    def _git_commit(self):
         try:
             result = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
@@ -59,11 +62,11 @@ class ExperimentLogger:
         except Exception:
             return None
 
-    def set_config(self, **config) -> None:
+    def set_config(self, **config):
         self.log["config"].update(config)
         self.flush()
 
-    def metric(self, name: str, value, **context) -> None:
+    def metric(self, name, value, **context):
         event = {
             "time": time.time(),
             "run_id": self.run_id,
@@ -76,7 +79,7 @@ class ExperimentLogger:
         self.log["metrics"][name] = value
         self.flush()
 
-    def artifact(self, path: str | Path, kind: str = "file", **metadata) -> None:
+    def artifact(self, path, kind="file", **metadata):
         p = Path(path)
         record = {
             "path": str(p),
@@ -88,7 +91,7 @@ class ExperimentLogger:
         self.log["artifacts"].append(record)
         self.flush()
 
-    def fail(self, exc: BaseException) -> None:
+    def fail(self, exc):
         self.log["status"] = "failed"
         self.log["error"] = {
             "type": type(exc).__name__,
@@ -109,19 +112,19 @@ class ExperimentLogger:
         with (self.output_dir / "debug_attempts.jsonl").open("a", encoding="utf-8") as f:
             f.write(json.dumps(debug_record, sort_keys=True) + "\n")
 
-    def finish(self) -> None:
+    def finish(self):
         self.log["status"] = "complete"
         self.log["finished_at"] = time.time()
         self.log["elapsed_seconds"] = self.log["finished_at"] - self.started_at
         self.flush()
         self.write_manifest()
 
-    def flush(self) -> None:
+    def flush(self):
         self.log["updated_at"] = time.time()
         with (self.output_dir / "experiment_log.json").open("w", encoding="utf-8") as f:
             json.dump(self.log, f, indent=2, sort_keys=True)
 
-    def write_manifest(self) -> None:
+    def write_manifest(self):
         manifest = {
             "run_id": self.run_id,
             "created_at": time.time(),
@@ -137,27 +140,33 @@ class ExperimentLogger:
 '''
 
 
-RUN_SCRIPT = r'''"""Kaggle remote experiment entry point.
+RUN_BODY = r'''"""Kaggle remote experiment entry point.
 
 Replace the placeholder training block with the real experiment. Keep the logger
 calls so `kaggle kernels output` can retrieve enough information to decide the
 next run without opening the notebook UI.
 """
 
-from __future__ import annotations
-
 import os
 import time
 from pathlib import Path
 
-from experiment_logger import ExperimentLogger
-
 
 RUN_ID = os.environ.get("RUN_ID", "{run_id}")
 OUTPUT_DIR = Path("/kaggle/working") if Path("/kaggle/working").exists() else Path(".")
+INPUT_ROOT = Path("/kaggle/input")
 
 
-def main() -> None:
+def discover_inputs():
+    """Print what Kaggle mounted so path assumptions are visible in the log."""
+    if not INPUT_ROOT.exists():
+        print("no /kaggle/input mount (local run)")
+        return
+    for root, _dirs, files in os.walk(INPUT_ROOT):
+        print(root, files[:5])
+
+
+def main():
     logger = ExperimentLogger(run_id=RUN_ID, output_dir=OUTPUT_DIR)
     logger.set_config(
         experiment="{title}",
@@ -165,6 +174,7 @@ def main() -> None:
         accelerator="{accelerator}",
     )
     try:
+        discover_inputs()
         # Replace this block with training/inference code.
         # Required outputs for real runs usually include:
         # - OOF predictions
@@ -182,8 +192,7 @@ def main() -> None:
         raise
 
 
-if __name__ == "__main__":
-    main()
+main()
 '''
 
 
@@ -200,6 +209,28 @@ def _split_csv(values: str | None) -> list[str]:
     return [v.strip() for v in values.split(",") if v.strip()]
 
 
+def _notebook(cells: list[str]) -> str:
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": cell,
+            }
+            for cell in cells
+        ],
+        "metadata": {
+            "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+            "language_info": {"name": "python"},
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    return json.dumps(notebook, indent=1) + "\n"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, help="Folder to create")
@@ -211,6 +242,12 @@ def main() -> None:
     parser.add_argument("--kernels", default="", help="Comma-separated kernel sources")
     parser.add_argument("--models", default="", help="Comma-separated model sources")
     parser.add_argument("--accelerator", default="", help="Kaggle accelerator machine shape")
+    parser.add_argument(
+        "--kernel-type",
+        choices=["script", "notebook"],
+        default="script",
+        help="Generate a .py script (default) or a .ipynb notebook",
+    )
     parser.add_argument("--internet", action="store_true", help="Enable internet access")
     parser.add_argument(
         "--public",
@@ -219,22 +256,38 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    out_dir = Path(args.output).expanduser().resolve()
+    out_dir = Path(args.output).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
 
     slug = _slugify(args.slug)
     run_id = slug.replace("-", "_")
-    code_file = "run_experiment.py"
+    body = RUN_BODY.format(
+        run_id=run_id,
+        title=args.title.replace('"', '\\"'),
+        competition=args.competition.replace('"', '\\"'),
+        accelerator=args.accelerator.replace('"', '\\"'),
+    )
+
+    if args.kernel_type == "notebook":
+        code_file = "run_experiment.ipynb"
+        (out_dir / code_file).write_text(_notebook([LOGGER_CODE, body]), encoding="utf-8")
+    else:
+        code_file = "run_experiment.py"
+        (out_dir / code_file).write_text(LOGGER_CODE + "\n\n" + body, encoding="utf-8")
+
+    accelerator = args.accelerator
+    uses_tpu = "tpu" in accelerator.lower()
     metadata = {
         "id": f"{args.username}/{slug}",
         "title": args.title,
         "code_file": code_file,
         "language": "python",
-        "kernel_type": "script",
+        "kernel_type": args.kernel_type,
         "is_private": not args.public,
-        "enable_gpu": bool(args.accelerator),
+        "enable_gpu": bool(accelerator) and not uses_tpu,
+        "enable_tpu": uses_tpu,
         "enable_internet": bool(args.internet),
-        "machine_shape": args.accelerator,
+        "machine_shape": accelerator,
         "dataset_sources": _split_csv(args.datasets),
         "competition_sources": [args.competition] if args.competition else [],
         "kernel_sources": _split_csv(args.kernels),
@@ -245,25 +298,19 @@ def main() -> None:
         json.dumps(metadata, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    (out_dir / "experiment_logger.py").write_text(LOGGER_CODE, encoding="utf-8")
-    (out_dir / code_file).write_text(
-        RUN_SCRIPT.format(
-            run_id=run_id,
-            title=args.title.replace('"', '\\"'),
-            competition=args.competition.replace('"', '\\"'),
-            accelerator=args.accelerator.replace('"', '\\"'),
-        ),
-        encoding="utf-8",
-    )
+
+    push_path = args.output
     competition_slug = args.competition or "COMPETITION_SLUG"
+    accelerator_flag = f" --accelerator {accelerator}" if accelerator else ""
     (out_dir / "RUN_COMMANDS.txt").write_text(
         textwrap.dedent(
             f"""\
             # Keep kernels private unless the competition rules, data license,
             # and third-party IP checks allow public sharing.
+            # Run these from the directory where --output was given as {push_path}.
 
             # Push and run on Kaggle
-            kaggle kernels push -p {out_dir}{" --accelerator " + args.accelerator if args.accelerator else ""}
+            kaggle kernels push -p {push_path}{accelerator_flag}
 
             # Poll status
             kaggle kernels status {args.username}/{slug}
@@ -272,7 +319,7 @@ def main() -> None:
             kaggle kernels output {args.username}/{slug} -p remote_outputs/{run_id} -o
 
             # If this is the final consumer for a classic competition, submit the produced file.
-            kaggle competitions submit {competition_slug} -f remote_outputs/{run_id}/submission.csv -m "{run_id}"
+            kaggle competitions submit {competition_slug} -f remote_outputs/{run_id}/submission.csv -k {args.username}/{slug} -v KERNEL_VERSION -m "{run_id}"
             kaggle competitions submissions {competition_slug} -v -q
 
             # If this is a code competition, submit the final kernel/version instead.
@@ -282,7 +329,7 @@ def main() -> None:
         ),
         encoding="utf-8",
     )
-    print(f"Created Kaggle kernel experiment at {out_dir}")
+    print(f"Created Kaggle kernel experiment at {out_dir} ({code_file})")
 
 
 if __name__ == "__main__":

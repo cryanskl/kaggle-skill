@@ -2,15 +2,11 @@
 
 Use this reference when a Kaggle competition slug, URL, title, or search phrase is available and public notebook solutions or discussion activity may inform the plan.
 
-Before using results, read `information-sharing-policy.md`. Public notebooks and discussions are scouting signals, not permission to copy code, text, data, or private strategy.
+Public notebooks and discussions are scouting signals, not permission to copy code, text, data, or private strategy. See `information-sharing-policy.md`.
 
-## Primary Tools
+## Source 1: `kaggle-competition-intel` MCP Tools (when installed)
 
-If the `kaggle-competition-intel` MCP server is installed and callable, use its tools before major modeling decisions.
-
-Use `top_open_solutions` for public notebook intelligence.
-
-Tool input:
+Use `top_open_solutions` for public notebook intelligence:
 
 ```json
 {
@@ -21,19 +17,11 @@ Tool input:
 }
 ```
 
-Inputs are required by the MCP tool:
-
 - `top_score_x`: number of public solutions by public score, 1 to 20.
 - `latest_y`: number of latest high-vote public notebooks, 1 to 50.
 - `min_latest_votes`: latest notebooks are included only when `totalVotes` is strictly greater than this threshold.
 
-For proactive scouting inside this skill, use `top_score_x: 5`, `latest_y: 5`, and `min_latest_votes: 30` when the user has not specified values, and state that this was the scouting depth and vote threshold.
-
-The tool returns competition metadata, metric direction, `score_ranked_solutions`, `latest_high_vote_solutions`, a de-duplicated `solutions` union, public resource URLs, last run time, vote count, selection source, and numeric `bestPublicScore` when Kaggle exposes it.
-
-Use `competition_discussions` for discussion intelligence.
-
-Tool input:
+Use `competition_discussions` for discussion intelligence:
 
 ```json
 {
@@ -43,14 +31,31 @@ Tool input:
 }
 ```
 
-Inputs are required by the MCP tool:
+Use the defaults above when the user has not specified values, and state the scouting depth and vote threshold in the report.
 
-- `top_votes_x`: number of top-voted discussion topics, 1 to 50.
-- `latest_replies_y`: number of latest-replied discussion topics, 1 to 50.
+## Source 2: Kaggle CLI (always available with credentials)
 
-For proactive scouting inside this skill, use `top_votes_x: 5` and `latest_replies_y: 5` when discussion activity may reveal data issues, rule clarifications, leakage warnings, notebook updates, or fast-moving techniques.
+```bash
+# top public-scored and most-voted notebooks
+kaggle kernels list --competition SLUG --sort-by scoreDescending --page-size 20
+kaggle kernels list --competition SLUG --sort-by voteCount --page-size 20
+kaggle kernels list --competition SLUG --sort-by dateRun --page-size 20   # recently active
 
-The tool returns competition metadata, `top_voted_discussions`, `latest_replied_discussions`, topic URLs, votes, comment counts, post dates, latest reply dates, sticky status, and topic IDs.
+# read one notebook's code and its attached inputs
+kaggle kernels pull USER/KERNEL_SLUG -p scouting/USER_KERNEL_SLUG -m
+# optional: jupytext --to py:percent scouting/USER_KERNEL_SLUG/*.ipynb
+
+# leaderboard context
+kaggle competitions leaderboard SLUG -s
+```
+
+`-m` also writes the notebook's `kernel-metadata.json`, which reveals attached datasets and models, GPU use, and internet settings. Use `--sort-by scoreAscending` when lower is better for the metric.
+
+## Source 3: Web Fetch Or User-Provided Links
+
+Fetch the competition's Discussion and Code tabs when browsing is available, or read links the user provides. Prioritize pinned/sticky topics, topics with many votes, and topics mentioning data bugs, leakage, metric clarifications, or rule changes.
+
+If none of the sources are available, proceed with the baseline workflow and note that live intel was unavailable.
 
 ## How To Use Results
 
@@ -60,30 +65,20 @@ Extract actionable patterns:
 - Data processing: cleaning, resizing, text preprocessing, feature stores, artifact datasets.
 - Model families: tree boosting, CatBoost, transformer, CNN, segmentation model, retrieval/reranker, ensembling.
 - Training details: loss, metric surrogate, augmentation, class imbalance handling, thresholding, inference tricks.
+- Submission mechanics: file vs kernel submission, `kaggle_evaluation` server, zip format, attached datasets, internet and GPU settings.
 - Pipeline shape: single notebook, producer/consumer notebooks, dataset artifacts, Kaggle GPU use.
 - Leaderboard risk: suspicious public-only tricks, overly tuned thresholds, or public LB chasing.
-- Discussion signals: rule clarifications, data bugs, leakage warnings, metric traps, resource constraints, high-signal Q&A, and newly shared techniques.
+- Discussion signals: rule clarifications, data bugs, leakage warnings, metric traps, resource constraints, high-signal Q&A, newly shared techniques.
 
-Do not blindly copy a notebook. Use top solutions as scouting data, then adapt ideas into the local validation and artifact discipline.
-
-Do not publish participant names, handles, or private links in generic reports unless the user explicitly needs source attribution for a public resource. Prefer technique summaries and public URLs.
-
-## Fallbacks
-
-If the MCP tool is not available:
-
-- Use the separate `$kaggle-competition-intel` skill if installed.
-- Use Kaggle UI/API/notebook search manually when browsing or Kaggle CLI is available.
-- Use existing local competition notes, public writeups, or user-provided links.
-- Proceed with the baseline workflow and note that live solution/discussion intelligence was unavailable.
+Adapt ideas into the local validation and artifact discipline; do not paste notebooks in. Do not publish participant names, handles, or private links in generic reports unless the user explicitly needs source attribution for a public resource.
 
 ## Reporting
 
 When summarizing intel, include:
 
 - Competition slug/title and metric.
-- Score-ranked notebook title, public score, votes, last run time, selection source, and URL.
-- Latest high-vote notebook title, votes, last run time, public score if available, selection source, and URL.
+- Score-ranked notebook title, public score, votes, last run time, and URL.
+- Latest high-vote notebook title, votes, last run time, public score if available, and URL.
 - Top-voted and latest-replied discussion title, votes, comment count, latest reply time, and URL.
 - Common technique themes.
 - Which ideas are worth testing locally.

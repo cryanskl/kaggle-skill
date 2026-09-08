@@ -26,19 +26,21 @@ kaggle competitions submissions COMPETITION_SLUG -v -q
 
 - Missing output: `submission.csv` not written, wrong path, wrong working directory, file written after an exception, or output only exists in a subfolder Kaggle does not collect.
 - Schema mismatch: wrong columns, wrong order, duplicate IDs, missing IDs, extra index column, bad label names, wrong class order, invalid probability range, NaN/inf values, or row count mismatch.
+- Training-data fallback: the visible test folder was empty or tiny, the code fell back to training files, and the submission contains training IDs. Fall back to a `sample_submission.csv` placeholder instead, never to training data.
 - Hidden data shape: assumptions from public data fail on hidden data, such as fixed image size, fixed text length, fixed number of files, fixed batch size, unseen classes/categories, or empty groups.
-- Path/input mismatch: hard-coded `/kaggle/input/...` paths, dataset slug changes, nested dataset folders, producer artifact version drift, missing model files, or case-sensitive filenames.
+- Path/input mismatch: hard-coded `/kaggle/input/...` paths (the mount may be `/kaggle/input/SLUG/` or `/kaggle/input/competitions/SLUG/`), dataset slug changes, nested dataset folders, producer artifact version drift, missing model files, case-sensitive filenames, or filename columns that already include the extension (`file.ogg.ogg`).
 - Internet/package issue: internet disabled, pip install attempted during scoring, package version differs, private dataset/model not attached, or imported module unavailable.
-- Resource failure: OOM, disk full, timeout, CPU/GPU mismatch, too many workers, large batch size, uncompressed intermediates, model ensemble too large, or slow test-time augmentation.
+- Resource failure: OOM, disk full, timeout, CPU/GPU mismatch, too many workers, large batch size, uncompressed intermediates, model ensemble too large, slow test-time augmentation, or a `kaggle_evaluation` per-batch time limit exceeded because models were loaded inside `predict`.
 - Statefulness: notebook relies on previous cell state, hidden global variables, mutable caches, random nondeterminism, or files generated in an earlier run but not in the scoring run.
-- Competition API misuse: code competition environment expects a specific inference server, iterator, prediction format, or final write location.
+- Competition API misuse: the competition expects a `kaggle_evaluation` inference server, a specific iterator, prediction format, or final write location, and the notebook writes a file instead (see `kaggle-pipeline.md`).
+- Silent failures: exceptions swallowed with bare `except: continue`, so feature extraction returns zero rows or a model silently predicts constants. Log the file and exception type for every skipped item and assert non-empty outputs.
 - External-data/rules issue: producer artifacts, pretrained weights, internet downloads, or private datasets are not allowed or not attached according to competition rules.
 
 ## Defensive Patches
 
 Add these safeguards to the final consumer before resubmission:
 
-- Centralize paths and print discovered input/output paths.
+- Centralize paths, discover them with `os.walk('/kaggle/input')`, and print what was found.
 - Validate all attached datasets, producer manifests, model files, and expected columns before inference.
 - Add public-data and synthetic hidden-like smoke tests for empty files, unseen categories, missing optional columns, odd image sizes, long/empty text, tiny batches, and one-row batches.
 - Wrap inference stages with concise logging that records stage start/end, shapes, counts, dtypes, memory estimates, and artifact paths.
@@ -47,14 +49,15 @@ Add these safeguards to the final consumer before resubmission:
 - Sanitize predictions: no NaN/inf, valid label set, valid probability range, expected row count, expected ID set/order.
 - Reduce resource pressure: smaller batch size, fewer workers, fp16/bfloat16 if safe, memory cleanup between models, model-by-model inference, compressed artifacts, and limited TTA.
 - Avoid hidden-state notebook behavior by using a single script-style entry point for scoring logic.
-- Disable network-dependent setup in scoring paths; vendor or attach required code/model/data as datasets.
+- Disable network-dependent setup in scoring paths; vendor wheels and attach required code/model/data as datasets (`kaggle-pipeline.md`, Offline Dependencies).
+- For inference servers, load every model before `serve()` and time one `predict` call locally against the per-batch limit.
 
 ## Retry Discipline
 
 - Make one hypothesis-driven patch per retry when possible.
 - Preserve each submitted kernel/version and `debug_attempts.jsonl` entry.
 - Avoid leaderboard probing. A retry should fix robustness, schema, path, dependency, or resource handling.
-- If daily submission quota is low, run extra visible Kaggle kernel tests before spending another scoring attempt.
+- If the competition's daily submission quota is low, run extra visible Kaggle kernel tests before spending another scoring attempt.
 - If the error remains vague after several genuine fixes, summarize attempted fixes and ask the user whether to spend another submission attempt.
 
 ## Debug Log Schema

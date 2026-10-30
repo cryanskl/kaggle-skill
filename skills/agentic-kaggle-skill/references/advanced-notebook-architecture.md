@@ -16,6 +16,17 @@ Do not overcomplicate before the split, metric, submission format, and one relia
 
 These signals justify considering a staged experiment, not automatically creating several producers. Needing remote GPU execution or a hidden-test notebook alone can be handled by one kernel; add stages when artifact reuse or measured model diversity justifies their cost.
 
+## Choose The Intervention Layer
+
+At public-baseline adoption or a plateau:
+
+1. Break the metric deficit into components or error clusters. Use ablations or clearly marked development-only hindsight oracles to estimate headroom within the tested candidate set. An oracle can use unavailable outcomes; it is not a deployable score or a ceiling for every possible method, and interacting component bounds need not add up.
+2. Check representability before sweeping parameters: does the candidate set contain the needed outcome, can the features/model distinguish it, and do solver constraints or relative costs prevent its selection? Repair that bottleneck when a desired correction cannot be expressed.
+3. Compare feasible interventions by expected independent-validation gain, uncertainty, implementation time, training/inference cost, and deadline. Cached embeddings, logits, or candidate features may support a small residual, reranker, calibrator, or specialist; audit upstream exposure using `cross-validation-and-metrics.md` before treating their validation as OOF.
+4. Give promising routes a bounded pilot and promotion/stop evidence. Reserve time for confirmation, artifact handoff, scoring latency, and a feasible recovery attempt. Keep rejected hypotheses and reopening conditions in the run record.
+
+A public plateau does not prove a method's ceiling or require retraining. Keep heuristics when independent evidence supports them, and add learned components or stages when their expected benefit justifies the cost.
+
 ## Architecture Pattern
 
 Use a shallow DAG:
@@ -50,6 +61,8 @@ Promote a producer output to the final consumer when at least one is true:
 - It reduces fold variance or fixes a known error cluster.
 - It adds ensemble diversity despite not winning alone.
 - It enables a downstream stage such as pseudo-labeling, postprocessing, or calibration.
+
+These gates admit artifacts to consumer experiments; they do not automatically qualify a final submitted blend. Evaluate the complete blend against the strongest single-model baseline with the selection procedure in `ensembling-and-reproducibility.md`.
 
 Reject or quarantine producers with suspicious train/valid gaps, schema drift, unexplainable public LB-only gains, or artifacts that cannot be reproduced.
 

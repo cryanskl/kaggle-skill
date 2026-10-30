@@ -72,6 +72,13 @@ Extract actionable patterns:
 
 Adapt ideas into the local validation and artifact discipline; do not paste notebooks in. Do not publish participant names, handles, or private links in generic reports unless the user explicitly needs source attribution for a public resource.
 
+For claims that change the strategy:
+
+- Distinguish a title or author claim, a processed leaderboard score, a reproduced result, and an ablation. Record source, date, artifact version, and evaluation split when known; do not attribute a whole-pipeline score to one component.
+- Check shared weights and code lineage. Similar notebooks from one lineage are not independent evidence, and a public plateau does not establish a private-score ceiling.
+- Read relevant discussions for scorer, data, and solver issues. If a page is only a JavaScript shell, try permitted UI/API access or saved local material and record any missing evidence. Do not make a temporary undocumented endpoint a permanent dependency or bypass access controls.
+- In post-mortems, compare final held-out/private or tournament results where applicable, validation design, ablations, resource accounting, and what actually shipped. Cross-team score differences suggest hypotheses, not causal component gains; preserve contradictory successful methods as conditional branches.
+
 ## Reporting
 
 When summarizing intel, include:

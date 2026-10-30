@@ -33,6 +33,14 @@ Use time-aware validation when chronological leakage is possible. Sort by time a
 - Check whether test rows (IDs, prompts, texts, image hashes) also appear in train. Exact or near matches change the approach from modeling to lookup and are common in text/QA competitions; record the overlap rate either way.
 - If CV and public LB disagree, audit split choice, metric implementation, submission format, and train/test drift before chasing the leaderboard.
 
+## Upstream Exposure And Confirmation
+
+- Record training groups, label exposure, folds, and versions of upstream checkpoints or cached features, including public baselines; mark unknown coverage. A downstream split cannot undo upstream exposure to validation labels. Use upstream predictions that excluded evaluation groups or an independent untouched holdout; otherwise label the result a conditional diagnostic, not end-to-end OOF, and do not train a stacker on exposed predictions.
+- Use small panels for debugging and cheap rejection. Before promotion, freeze the candidate and acceptance rule, then confirm on broader independent groups where feasible. After extensive adaptive tuning, use an untouched confirmation set or nested evaluation rather than reusing the selection panel as confirmation.
+- Compare on the same examples with the actual aggregation rule. Recompute pooled/nonlinear metrics instead of averaging per-example or per-group score deltas. Report paired differences and group or leave-one-group-out sensitivity when useful.
+- Estimate uncertainty at the independent unit, such as patient, site, or time block. Many clips from two subjects do not establish broad cross-subject validity; report coverage and untested groups under a tight budget.
+- When learning corrections across sources, audit missing-label policies, units, coordinate conventions, class definitions, and annotation timing first. Treat source differences as hypotheses to validate, not offsets to apply blindly to an unseen group.
+
 ## Metric Selection
 
 Use the competition metric exactly. Common mappings:
@@ -43,6 +51,8 @@ Use the competition metric exactly. Common mappings:
 - Regression: RMSE, RMSLE, MAE, MAPE, R2, correlation, quantile loss.
 - Ranking/recommendation: MAP@K, NDCG@K, hit rate, recall@K.
 - Segmentation: Dice, IoU/Jaccard, pixel accuracy, boundary-aware metrics.
+
+For custom metrics, inspect the scorer and data contract for matching, sparse annotation semantics, ignored predictions, clipping/caps, count penalties, and aggregation. An unannotated example is not automatically a negative. Local scorer agreement does not establish hosted-reader compatibility; use the format checks in `submission-endgame.md` as well.
 
 When the metric has thresholds, tune thresholds on OOF predictions only. For F1/MCC/kappa, thresholding can matter as much as model choice.
 

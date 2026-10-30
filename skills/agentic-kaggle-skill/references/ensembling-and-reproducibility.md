@@ -52,7 +52,7 @@ For each run, save:
 Ensembles help when the members' errors are uncorrelated; they hurt when members are near-duplicates, when a weak member dilutes a strong one, or when weights are tuned on the public leaderboard.
 
 1. Score each candidate independently on OOF: mean, fold std, and where it fails.
-2. Check pairwise OOF prediction correlation (Pearson or Spearman). Above roughly 0.90, treat the pair as one source and keep the stronger member; also check error overlap on the validation rows.
+2. Check pairwise OOF prediction correlation (Pearson or Spearman) and error overlap as redundancy diagnostics, not a fixed rejection threshold or proof of shared lineage. Test whether a correlated member still improves the real blend metric on valid independent evidence.
 3. Start from the best single model. The blend must beat it on OOF or it is not used.
 4. Add candidates greedily: add the next best, re-score the OOF blend, keep it only if the score improves; a member that hurts every combination is dropped regardless of its standalone score.
 5. Search weights on OOF only, with a small search space. Never tune weights on public LB scores.
@@ -93,3 +93,9 @@ Blending with a holdout set is stacking with one split instead of full OOF folds
 - Make every Kaggle score traceable to the exact submission file or kernel/version that produced it.
 - For Kaggle-offloaded runs, keep the pushed kernel folder, `kernel-metadata.json`, downloaded `experiment_log.json`, `metrics.jsonl`, and output artifacts together under `remote_outputs/RUN_ID/`.
 - For multi-notebook runs, keep producer dataset folders under `kaggle_datasets/` and final downloaded outputs under `remote_outputs/CONSUMER_RUN_ID/`.
+
+## Replay At The Submission Boundary
+
+When adapting a public pipeline or changing postprocessing, keep an identifiable baseline version and compare local outputs with the actual submission-producing runtime on the same inputs, including the final writer. Use byte identity when determinism and serialization make it meaningful; otherwise declare numerical tolerances and compare IDs, schemas, and task-specific invariants. Agreement proves implementation consistency on those inputs, not model quality or hidden-test transfer.
+
+Record failed experiments with the same config, metric, and artifact provenance as successful ones, including rejection reasons and evidence that would justify reopening them. Keep untested hypotheses distinct from measured negative results.

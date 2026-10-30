@@ -29,6 +29,7 @@ Submit the qualified agent using the competition's actual contract. Retrieve hos
 - Each competition sets its own daily submission limit; read it from the competition page and count today's attempts with `kaggle competitions submissions SLUG`.
 - Spend scoring attempts on validated improvements. Use visible runs and local contract checks before consuming scoring attempts; predictive tasks use CV/OOF evidence, while interactive tasks use complete-game confirmation.
 - When only a few attempts remain, prefer the candidate supported by the relevant validation over a transient public-LB leader. For interactive agents, include opponent coverage and active-slot eviction risk.
+- Before a small contract-compliant comparison of a format change or CV/LB discrepancy, define the hypothesis and how its result will be interpreted; use `code-competition-debugging.md` for runtime failures. Reserve processing/recovery time before the deadline and preserve a validated fallback while a candidate is unresolved.
 
 ## Prediction File Checks
 
@@ -38,6 +39,7 @@ These checks apply to prediction-file submissions. Agent packages use Interactiv
 - The file exists, the row count matches `sample_submission.csv`, IDs and order are correct, required columns exist, labels/probabilities are in the expected format, and values are clipped or rounded only when the metric or competition requires it.
 - For zipped submissions, the archive contains only the required file: `zip submission.zip submission.csv`.
 - Local CV and OOF diagnostics agree with the candidate being sent.
+- Check parsing and serialization separately from the scoring formula. Precision, rounding, IDs, row types, or optional columns need a round trip through the actual writer and reader contract; local metric acceptance alone does not prove hosted compatibility. See `ensembling-and-reproducibility.md` for submission-boundary replay.
 
 ## Classic Submission Flow
 
@@ -72,6 +74,11 @@ Determine `VERSION` from the kernel status/output metadata or the Kaggle UI. If 
 - For simulation, game-agent, and episode-averaged competitions, early ratings or estimates may be unstable in either direction. Interpret them using episode count, opponent coverage, rating uncertainty when available, and observation time; a fixed age in hours does not establish convergence. Start hosted evaluation once the candidate passes the relevant checks, accounting for active-slot eviction and remaining budget; do not replace a scored incumbent merely to obtain an older rating.
 - For ordinary competitions, a public score that disagrees with CV is a validation question (split choice, metric implementation, train/test drift) before it is a modeling result.
 - A score drop after a code change: confirm the new kernel version actually ran and completed, compare the two submission files, then look at the model.
+
+## Final Selection And Retrospective
+
+- Read the actual final-selection rule: eligible submissions, number of picks, defaults, and how final results are assigned. Select with validation and distribution risk. Another pick should add credible complementary performance or hedge a specific uncertainty; a different but weaker model does not establish useful diversity.
+- After final held-out/private or tournament results become available, separate candidate quality from selection regret under that rule. Compare chosen and eligible alternatives, record which validation/public signals transferred, and keep hindsight separate from what was knowable at selection time.
 
 ## Final Response Requirements
 

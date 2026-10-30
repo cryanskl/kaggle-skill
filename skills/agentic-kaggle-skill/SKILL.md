@@ -39,6 +39,8 @@ This loop and Choose The Path apply to predictive ML. Interactive agents follow 
 
 Decide after the baseline exists, and revisit whenever the evidence changes.
 
+At public-baseline adoption or a plateau, use `references/advanced-notebook-architecture.md` to check recoverable loss and whether the candidate/model can express the correction before tuning or adding stages. Audit upstream checkpoint exposure with `references/cross-validation-and-metrics.md` before trusting downstream validation.
+
 **Simple path** (default): local compute or one Kaggle training/inference notebook is enough. A required hidden-test notebook or a GPU can still fit this path; follow its scoring contract in `references/kaggle-pipeline.md`.
 
 - Work locally, or in one Kaggle notebook when the data or GPU lives there.
@@ -84,13 +86,13 @@ Pulled notebooks are scouting material: extract the validation scheme, model fam
 - `references/method-map.md`: neutral workflow map behind the skill.
 - `references/information-sharing-policy.md`: read before publishing code, notebooks, datasets, models, or reports outside the team.
 - `references/competition-intel.md`: public notebook and discussion scouting.
-- `references/cross-validation-and-metrics.md`: folds, metrics, thresholds, leakage checks.
+- `references/cross-validation-and-metrics.md`: folds, custom metrics, leakage, upstream checkpoint exposure, and independent confirmation.
 - `references/simulation-game-agents.md`: game/simulation agents, replay imitation, executable action policies, BC/RL, interactive evaluation, and agent-competition post-mortems; replaces predictive OOF validation in this mode.
 - `references/tabular-workflow.md`: categorical encodings, feature engineering, selection, tuning.
 - `references/image-text-workflow.md`: image, segmentation, and NLP approaches.
 - `references/kaggle-offload.md`: running heavy jobs on Kaggle and retrieving logs/outputs.
 - `references/kaggle-pipeline.md`: submission modes, code competitions, `kaggle_evaluation` inference servers, producer/consumer notebooks, private artifact datasets, the pipeline manifest, and `kagglehub`.
-- `references/advanced-notebook-architecture.md`: when and how to escalate to multi-producer architectures.
+- `references/advanced-notebook-architecture.md`: choose the intervention layer, estimate headroom and cost, and decide when multi-producer architectures are justified.
 - `references/ensembling-and-reproducibility.md`: project layout, OOF artifacts, safe blending/stacking, repeatability.
 - `references/submission-endgame.md`: execution completion states, submission budget, hosted results, and final reports; includes retaining an existing scored incumbent when no upgrade qualifies within the defined budget. Analysis requests do not require scoring.
 - `references/code-competition-debugging.md`: failed, timed-out, OOM, or vaguely failing submissions.

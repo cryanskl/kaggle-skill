@@ -9,6 +9,7 @@ This skill packages a neutral Kaggle competition workflow. It should provide reu
 | Environment setup | Create a repeatable local and Kaggle project layout. |
 | Task framing | Identify target type, metric, data constraints, submission mode, and scoring boundary. |
 | Validation | Build folds that match hidden-test risk and prevent leakage. |
+| Simulation agents | Use replay action contracts, episode splits, executable policies, interactive match panels, and BC/RL decision gates. |
 | Metrics | Reproduce the official metric locally before trusting experiments. |
 | Project structure | Keep raw inputs, configs, training code, model artifacts, OOF predictions, logs, and submissions separated. |
 | Categorical and tabular features | Use encodings, missing-value policy, feature selection, and tuning with fold boundaries. |

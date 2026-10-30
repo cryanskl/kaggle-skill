@@ -1,15 +1,17 @@
 ---
 name: agentic-kaggle-skill
-description: End-to-end Kaggle competition workflow that runs through a scored submission. Use whenever the user mentions a Kaggle competition, leaderboard, submission, kernel/notebook, code competition, cross-validation folds, OOF predictions, ensembling/stacking, or competitive ML on tabular, text, image, time-series, or simulation data. Covers rules/metric checks, fold design, baselines, Kaggle GPU offload, producer/consumer notebook pipelines with private artifact datasets, kagglehub, hidden-test debugging, submission, and score retrieval. Works with Claude Code, Codex, and Hermes.
+description: Kaggle competition execution and evidence-based post-mortems for predictive ML and simulation agents. Covers validation, public solution intelligence, modeling, replay-based behavior cloning, reinforcement learning, Kaggle compute and artifact pipelines, submission debugging, and score retrieval.
 ---
 
 # Agentic Kaggle Skill
 
-Treat every competition as a validation problem first and a modeling problem second. The default target platform is Kaggle: prefer Kaggle-native notebooks/scripts, datasets, model artifacts, competition submissions, and score receipts. Do not stop at a plan, a trained model, or a local CV score; the work is done when Kaggle has scored a submission or a concrete external blocker is recorded (see Definition Of Done).
+Treat every competition as a validation problem first and a modeling problem second. The default target platform is Kaggle: prefer Kaggle-native notebooks/scripts, datasets, model artifacts, competition submissions, and score receipts. For execution requests, continue to the applicable Definition Of Done; a local model or CV score alone is not a scored submission.
 
 In commands below, `<skill-dir>` means the directory that contains this SKILL.md.
 
-## Setup Checklist
+Choose the request mode before executing the steps below. Predictive ML uses folds and OOF predictions. Simulation/game-agent competitions use complete episodes, action contracts, interactive opponents, and match-level validation: read `references/simulation-game-agents.md` and replace predictive row/fold/OOF steps with its episode workflow. An interactive agent can use a Python/archive submission rather than a hidden-test notebook. For analysis, post-mortems, and skill maintenance, audit the requested sources and actual artifacts, deliver evidence-based conclusions, and do not start training or submissions.
+
+## Setup Checklist (Execution Requests)
 
 Run these before any modeling:
 
@@ -81,6 +83,7 @@ Pulled notebooks are scouting material: extract the validation scheme, model fam
 - `references/information-sharing-policy.md`: read before publishing code, notebooks, datasets, models, or reports outside the team.
 - `references/competition-intel.md`: public notebook and discussion scouting.
 - `references/cross-validation-and-metrics.md`: folds, metrics, thresholds, leakage checks.
+- `references/simulation-game-agents.md`: game/simulation agents, replay imitation, executable action policies, BC/RL, interactive evaluation, and agent-competition post-mortems; replaces predictive OOF validation in this mode.
 - `references/tabular-workflow.md`: categorical encodings, feature engineering, selection, tuning.
 - `references/image-text-workflow.md`: image, segmentation, and NLP approaches.
 - `references/kaggle-offload.md`: running heavy jobs on Kaggle and retrieving logs/outputs.
@@ -98,10 +101,12 @@ Historical case studies and research notes live in the repository's top-level `d
 
 ## Definition Of Done
 
-Do not stop at a plan, scaffold, trained model, notebook run, downloaded output, or local validation score. Continue until one of these is true:
+For execution requests, do not stop at a plan, scaffold, trained model, notebook run, downloaded output, or local validation score. Continue until one of these is true:
 
 - A competition submission has been sent to Kaggle, Kaggle has processed it, and the public score or submission status has been retrieved and recorded.
 - A code-competition final notebook/kernel has consumed all required producer artifacts, has been submitted with its kernel/version reference, and the resulting submission status/score has been retrieved and recorded.
+- An interactive agent's exact archive passed hosted validation, and available rated episodes or rating/status receipts were retrieved with observation time and opponent context. A validation self-match establishes execution, not competitive strength or settled rank.
+- For a bounded improvement request with an existing scored incumbent, the defined budget/stop rule was reached and no candidate qualified. Preserve the incumbent, report rejection evidence and reopening conditions, and do not submit a weaker replacement merely to obtain a new receipt.
 - A concrete external blocker prevents scoring: missing Kaggle credentials, rules not accepted, quota exhausted after retry attempts, competition closed, scoring disabled, required manual UI-only action, unavailable kernel version, or Kaggle service failure. Record the exact blocker and the next command/action needed.
 
 ## Validation Choices
@@ -114,7 +119,7 @@ Do not stop at a plan, scaffold, trained model, notebook run, downloaded output,
 - Images from the same subject or scene: group by subject/scene before augmentation.
 - Text with duplicated sources, authors, questions, products, or prompts: group by source key.
 - Tiny data: repeated folds or more folds, but keep the final model selection discipline strict.
-- Simulation/game competitions: no folds; validate by local matches against baseline agents when the environment is available, and by score stabilization on Kaggle otherwise.
+- Simulation/game competitions: split replay training data by complete episodes; validate executable policies through representative interactive matches, paired seeds/seats, and separate confirmation. Fixed replay opponents, proxy clones, and transient ratings provide narrower evidence; see `references/simulation-game-agents.md`.
 
 Compare mean fold score and fold variance, not only the best fold. Treat a public LB jump that disagrees with CV as a validation question before treating it as a modeling victory.
 

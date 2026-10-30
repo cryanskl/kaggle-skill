@@ -1,96 +1,52 @@
 # Submission Endgame
 
-Use this reference before stopping a competition execution task. Normally the workflow expects a scored Kaggle submission, not just a local model, remote run, or notebook architecture. For bounded improvements to a scored incumbent, retain it if no candidate qualifies. Analysis, post-mortem, and skill-maintenance requests do not require a new submission.
+This is the owner of completion states and hosted submission/result collection. Respect the user's requested stage: training, local validation, a code fix, analysis, or skill maintenance can finish at that stage without a Kaggle submission. Use the states below when hosted scoring/submission is part of the request.
 
-Before publishing final code, reports, models, or artifacts outside the team, read `information-sharing-policy.md`.
+Read `information-sharing-policy.md` before sharing code, models, data, or reports outside the team. Use `kaggle-pipeline.md` for the actual scoring contract, `kaggle-offload.md` for remote execution, and `code-competition-debugging.md` for failures.
 
-## End Condition
+## Completion States
 
-Continue working until one of these states is reached:
+- `scored`: a valid submission was processed and its available hosted status/result was retrieved. Record observation time and artifact/version identity. For agents, hosted validation and available rated-episode evidence do not imply a settled rank.
+- `no_qualified_upgrade`: an existing scored incumbent remains because no candidate passed the defined improvement gate within the budget. Record rejected candidates and reopening evidence; this does not replace a requested first submission.
+- `blocked`: a concrete external condition prevents further progress, such as authentication/access, unaccepted rules, unavailable required platform input, closed competition, or confirmed quota/service failure. Record the exact evidence and next feasible action; an unknown quota or a vague runtime error is not proof of this state.
+- `stopped`: an agreed budget or stopping rule was reached before scoring succeeded. Say explicitly that the scoring objective remains unmet; preserve artifacts, attempted fixes, remaining work, and conditions for resuming. Do not relabel this as `scored` or an external blocker.
 
-- `scored`: Kaggle accepted and processed a submission, and the submission status plus public score or visible scoring result has been retrieved.
-- `no_qualified_upgrade`: for a bounded improvement task with an existing scored incumbent, the defined budget or stop rule was reached and no candidate passed the validation gate. Keep the incumbent and report the evidence and reopening condition; this is not an external scoring blocker or permission to skip a requested first submission.
-- `blocked`: an external condition prevents scoring, such as missing Kaggle credentials, competition rules not accepted, submission quota exhausted, competition closed, scoring disabled, required manual UI-only action, missing kernel version, or Kaggle service failure.
+If work is limited to an earlier phase, report that phase's result and remaining hosted work instead. Do not expand scope or repeatedly ask for approval already supplied. Additional scope/cost outside the existing authorization needs the user's decision.
 
-If a code-competition submission fails with a vague scoring/runtime error, do not mark it blocked immediately. Read `code-competition-debugging.md`, patch the final kernel defensively, rerun/resubmit, and only mark blocked after retry attempts are exhausted by an external condition.
+## Before Spending A Submission
 
-If blocked, record the exact error text, command attempted, competition slug, next command/action, retry count, and whether any local/remote artifacts are ready.
+- Check the competition's actual submission limit and remaining attempts; record the observation time. Preserve a validated fallback and allow processing/recovery time before the deadline.
+- Select using the relevant validation: leakage-safe held-out predictive evidence or representative interactive matches. When a scored incumbent exists, account for active-slot eviction and require a qualified replacement.
+- Verify the exact submission contract, artifact hash/version, dependencies, and resource limits. Archives include the required files/layout; files match the required IDs, schema and values; servers/adapter submissions follow their own contracts.
+- Test parsing/serialization separately from the metric. A change to precision, rounding, row types, or optional fields needs the real writer/reader round trip (`ensembling-and-reproducibility.md`). Local metric agreement does not prove hosted compatibility.
+- For a contract-compliant format or CV/LB comparison, define the hypothesis and interpretation before a small informative attempt. Use the debugging loop for failures; do not use failures to probe hidden data.
 
-## Interactive Agent Flow
+A `400`, `403`, or generic `ERROR` can have several causes. Inspect the response, access, format, and official starter rather than inferring rules acceptance or submission mode from the status alone.
 
-Use `simulation-game-agents.md` for local episode and opponent evaluation. A Python/archive agent is not necessarily a prediction-file or hidden-test notebook competition.
+## Submit And Collect The Result
 
-Before replacement, verify the exact action-producing chain, runtime dependencies, archive entrypoint, cold start and per-turn budget, plus the current active-slot/eviction rule. Use representative interactive matchups and a frozen confirmation rule; fixed recorded opponents and validation self-play establish narrower evidence.
-
-Submit the qualified agent using the competition's actual contract. Retrieve hosted validation status and available rated episode outcomes or rating/status receipts with their observation time, opponent coverage, and exact artifact identity. A processed validation game is not a settled competitive rating. Report available evidence without waiting indefinitely for rank convergence. If no candidate qualifies within a defined improvement budget, retain the scored incumbent and record `no_qualified_upgrade`.
-
-## Submission Budget
-
-- Each competition sets its own daily submission limit; read it from the competition page and count today's attempts with `kaggle competitions submissions SLUG`.
-- Spend scoring attempts on validated improvements. Use visible runs and local contract checks before consuming scoring attempts; predictive tasks use CV/OOF evidence, while interactive tasks use complete-game confirmation.
-- When only a few attempts remain, prefer the candidate supported by the relevant validation over a transient public-LB leader. For interactive agents, include opponent coverage and active-slot eviction risk.
-- Before a small contract-compliant comparison of a format change or CV/LB discrepancy, define the hypothesis and how its result will be interpreted; use `code-competition-debugging.md` for runtime failures. Reserve processing/recovery time before the deadline and preserve a validated fallback while a candidate is unresolved.
-
-## Prediction File Checks
-
-These checks apply to prediction-file submissions. Agent packages use Interactive Agent Flow; code/model submissions also follow `kaggle-pipeline.md` for their actual scoring contract.
-
-- Rules accepted and credentials work.
-- The file exists, the row count matches `sample_submission.csv`, IDs and order are correct, required columns exist, labels/probabilities are in the expected format, and values are clipped or rounded only when the metric or competition requires it.
-- For zipped submissions, the archive contains only the required file: `zip submission.zip submission.csv`.
-- Local CV and OOF diagnostics agree with the candidate being sent.
-- Check parsing and serialization separately from the scoring formula. Precision, rounding, IDs, row types, or optional columns need a round trip through the actual writer and reader contract; local metric acceptance alone does not prove hosted compatibility. See `ensembling-and-reproducibility.md` for submission-boundary replay.
-
-## Classic Submission Flow
+Use current command help and the competition's documented path. Typical prediction-file and notebook-linked patterns are:
 
 ```bash
-kaggle competitions submit COMPETITION_SLUG -f SUBMISSION_FILE -m "RUN_ID_OR_MESSAGE"
-kaggle competitions submissions COMPETITION_SLUG -v -q
+kaggle competitions submit SLUG -f SUBMISSION_FILE -m RUN_ID
+# When kernel/version scoring or attribution is required/supported:
+kaggle competitions submit SLUG -f SUBMISSION_FILE -k USER/KERNEL -v VERSION -m RUN_ID
+kaggle competitions submissions SLUG -v -q
 ```
 
-If a notebook produced the file, add `-k USER/KERNEL -v VERSION` so the submission is linked to the code.
+For code/model/server submissions, verify the scoring entry point and every required artifact first (`kaggle-pipeline.md`). A single kernel need not have producers. If staged, all required producer outputs must be complete and mounted. Determine the actual kernel version from available platform metadata; record uncertainty or missing access rather than inventing one.
 
-After submitting:
+Retrieve processed status/result within the authorized budget. Save `submission_receipt.json` (or the existing equivalent) in the orchestration workspace, with command/request, timestamp, file hash or kernel/version, submission ID when available, observed status, score/result, and error evidence. Update a pipeline record only when present. A push receipt or completed visible run alone does not establish hosted scoring.
 
-- Poll `kaggle competitions submissions` until the submission is processed or a failure is visible.
-- Save the latest submission record to `submission_receipt.json`.
-- Add the public score/status to the experiment log and the final response.
+For interactive agents, use the exact policy package and loader, then collect hosted validation and available rated episodes/status with opponent context. Fixed replay counterfactuals and self-matches provide narrower evidence than interactive strength. Report what is available without waiting indefinitely for rank convergence.
 
-A `400 Bad Request` on submit usually means a format problem: wrong columns or header, IDs that do not match the test set, a zip that was expected (or not), or a competition that requires a kernel or model submission rather than a file. Check `sample_submission.csv` and a top public notebook's output format before retrying.
+## Interpret And Select
 
-## Code Competition Flow
+- Public/CV disagreement calls for a split, metric, format, or distribution audit. For code changes, first confirm the intended version/artifact actually ran.
+- Early game ratings can vary in either direction. Use episode count, opponent coverage, uncertainty where available, and observation time; a fixed age in hours does not establish convergence.
+- Read the final-selection rule: eligibility, number of picks, defaults, and result assignment. Another pick needs credible complementary performance or a specific risk hedge; a different name alone is not diversity.
+- After final held-out/private or tournament results, separate candidate quality from selection regret. Compare chosen and eligible alternatives under that rule, without treating hindsight as information available during selection.
 
-Follow `kaggle-pipeline.md` for the full producer/consumer procedure. The endgame steps are:
+## Final Report
 
-1. All producers complete; durable outputs are versioned as private datasets and attached to the consumer.
-2. Push the final consumer, poll until complete, download outputs, verify `submission.csv` (or a clean local-gateway run for `kaggle_evaluation` competitions), logs, and manifests.
-3. Submit the consumer kernel version: `kaggle competitions submit SLUG -f submission.csv -k USER/KERNEL -v VERSION -m MSG`.
-4. Retrieve the status/score; if scoring fails, run the debugging loop on the consumer and resubmit.
-
-Determine `VERSION` from the kernel status/output metadata or the Kaggle UI. If it cannot be determined programmatically, record that as a blocker with the final kernel ref and ready artifact.
-
-## Score Interpretation
-
-- For simulation, game-agent, and episode-averaged competitions, early ratings or estimates may be unstable in either direction. Interpret them using episode count, opponent coverage, rating uncertainty when available, and observation time; a fixed age in hours does not establish convergence. Start hosted evaluation once the candidate passes the relevant checks, accounting for active-slot eviction and remaining budget; do not replace a scored incumbent merely to obtain an older rating.
-- For ordinary competitions, a public score that disagrees with CV is a validation question (split choice, metric implementation, train/test drift) before it is a modeling result.
-- A score drop after a code change: confirm the new kernel version actually ran and completed, compare the two submission files, then look at the model.
-
-## Final Selection And Retrospective
-
-- Read the actual final-selection rule: eligible submissions, number of picks, defaults, and how final results are assigned. Select with validation and distribution risk. Another pick should add credible complementary performance or hedge a specific uncertainty; a different but weaker model does not establish useful diversity.
-- After final held-out/private or tournament results become available, separate candidate quality from selection regret under that rule. Compare chosen and eligible alternatives, record which validation/public signals transferred, and keep hindsight separate from what was knowable at selection time.
-
-## Final Response Requirements
-
-A completed run summary must include:
-
-- Competition slug.
-- Run ID and final artifact/kernel reference.
-- Mode-appropriate local validation: CV/OOF mean and fold std for prediction tasks, or complete-episode W/D/L, paired uncertainty, opponent panel/version/time and confirmation evidence for interactive agents.
-- Kaggle submission status and public score if processed.
-- For an unchanged incumbent, its existing submission identity, why no replacement qualified, and the evidence needed to reopen the route.
-- Error/debug loop summary if a scoring failure occurred.
-- Submitted file path or kernel/version.
-- Producer dataset/kernel refs for staged architectures.
-- Submission attempts used today versus the competition limit.
-- Any remaining private-LB or validation-risk caveats.
+Include the requested phase and completion state, competition/run ID, exact artifact/kernel version, mode-appropriate validation and its limits, hosted status/result if attempted, consumed budget, relevant failure/retry evidence, and any unresolved objective. For retained incumbents, identify the existing submission and why no upgrade qualified. For staged work, include artifact source/version lineage. State the next action or reopening condition where work remains.

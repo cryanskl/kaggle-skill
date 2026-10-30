@@ -1,68 +1,31 @@
 # Image And Text Workflow
 
-## Image Classification
+Use `cross-validation-and-metrics.md` for group/time splits, leakage-safe held-out predictions, upstream model exposure, and confirmation. Choose experiments for the data, allowed assets, and compute budget rather than requiring every model family.
 
-Start with the data pipeline:
+## Images
 
-- Verify image paths, labels, EXIF/orientation, channel count, corrupted files, class balance, and duplicates.
-- Split by subject, patient, scene, product, or source when repeated entities exist.
-- Use stratification only after respecting groups.
-- Resize consistently and record input resolution.
-- Keep augmentations plausible for the domain.
+Verify paths, labels, orientation, channels, corrupted files, duplicates, and source/subject identity. Match preprocessing between training and inference, record resolution, and keep augmentations plausible for the label semantics. Respect evaluation groups before augmenting.
 
-Baseline:
+A pretrained backbone is a useful candidate when rules, input domain, and runtime permit it. Validate against the competition metric or an understood surrogate. Preserve held-out predictions for comparison; try class sampling/loss changes, mixup/cutmix, resolution diversity, or test-time augmentation only when error analysis and budget justify them.
 
-- Use a pretrained backbone.
-- Train with early stopping against the competition metric or a close surrogate.
-- Save OOF probabilities and test probabilities.
-- Add test-time augmentation only after the base model is stable.
-
-Useful improvements:
-
-- Class-balanced sampling or loss for imbalance.
-- Mixup/cutmix when label semantics allow it.
-- Resolution/model-family diversity for ensembles.
-- Error analysis by class, source, brightness, resolution, and duplicate group.
+Inspect errors by class, source, lighting, resolution, or duplicate group where informative. More backbones and larger images are not automatic upgrades.
 
 ## Segmentation
 
-Validate masks before modeling:
+Check mask alignment, dimensions, label values, missingness, and annotation coverage before modeling. Choose a loss that supports the official metric and verify the effect of changes on that metric. Missing masks or unannotated pixels must follow the actual label contract.
 
-- Check mask alignment, label values, missing masks, and dimensions.
-- Match train-time loss to the metric: Dice, BCE+Dice, focal loss, IoU/Jaccard surrogate, or class-weighted losses.
-- Split grouped images by subject/source.
-- Tune postprocessing on OOF predictions only: thresholds, connected components, holes, minimum object size.
+Tune thresholds, components, holes, or object-size postprocessing on leakage-safe held-out predictions. Use the same inference and output-writing path during confirmation; see `ensembling-and-reproducibility.md` for submission-boundary replay.
 
-## Text Classification Or Regression
+## Text
 
-Keep two tracks: sparse classical models and neural/transformer models.
+Start with an economical baseline appropriate to the task. Sparse word/character TF-IDF with a linear classifier or regressor can be informative; a pretrained neural model may be preferable when semantics and available assets justify it. Running both tracks is optional.
 
-Sparse baseline:
+Preserve useful punctuation, casing, and domain tokens until validation supports removing them. For neural models, inspect tokenization, length/truncation, label encoding, and collation. Compare predictive benefit and inference cost with simpler alternatives.
 
-- Minimal cleaning first; avoid destroying useful punctuation, casing, or domain tokens.
-- Use word and character TF-IDF n-grams.
-- Try logistic regression, linear SVM, ridge, naive Bayes variants, and SVD plus simple models.
-- Use sparse matrices and save vectorizer settings.
+Optional complementary features include text length, punctuation/case statistics, language/source markers, and SVD features. Model probabilities used as meta-features must satisfy the held-out contract, not come from predictions fitted on those same labels.
 
-Neural/transformer baseline:
+## Mixed Modalities
 
-- Split by source/author/user/question/product/prompt if duplication is possible.
-- Validate tokenization, max length, truncation side, label encoding, and batch collation.
-- Use pretrained models when the competition data is large enough or semantics matter.
-- Compare speed and inference cost against simpler baselines; transformers are not automatically worth it.
+Use comparable evaluation units and splits to compare unimodal, early-fusion, or late-fusion candidates. Cheap unimodal ablations can reveal which inputs matter, but building every modality's strongest standalone model is not a prerequisite for fusion.
 
-Text features that often blend well:
-
-- Text length, word count, sentence count, punctuation counts, capitalization ratios.
-- Language/source/domain markers.
-- SVD components from TF-IDF.
-- Classical model probabilities as meta-features.
-
-## Modality Mixing
-
-For competitions with tabular plus text/image:
-
-- Train each modality's strong baseline independently with the same fold IDs.
-- Save OOF predictions per modality.
-- Blend probabilities first; stack later if OOF coverage is clean.
-- Add tabular metadata to neural models only after the single-modality baselines are trustworthy.
+Add modality-specific producers only when they provide reusable artifacts or validated complementary information. Blend or stack with the procedure in `ensembling-and-reproducibility.md`; do not infer benefit from architecture complexity alone.

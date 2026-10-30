@@ -1,37 +1,23 @@
 # Information Sharing Policy
 
-Use this reference before sharing competition-related code, notebooks, datasets, models, artifacts, reports, or repository contents outside the active team or local workspace.
+Use before sharing competition-specific code, data, models, artifacts, or reports outside the active team. Generic workflow documentation does not by itself authorize or require publishing competition materials.
 
 ## Policy Checkpoint
 
-Kaggle competition rules vary by competition. Always inspect the target competition's rules, data tab, code/notebook requirements, and any competition-specific terms before publishing or privately sharing work.
+Check the target competition's rules, data license, and sharing terms for the material and audience involved. Public availability alone is not permission to redistribute it.
 
 Default to these guardrails:
 
-- Do not privately share competition code, data, generated features, trained models, notebook outputs, or submissions outside the active team unless the competition rules explicitly allow it.
-- Public sharing of competition code is acceptable only when the target rules allow public sharing, the code is available to all participants on equal terms, and third-party IP/license obligations are satisfied.
-- Do not publish, commit, redistribute, or attach competition data outside allowed Kaggle surfaces unless the data license explicitly allows redistribution.
-- Do not publish data-derived artifacts such as feature tables, embeddings, pseudo labels, checkpoints, OOF/test predictions, or submissions when they could expose restricted data or create an unfair private advantage.
-- Keep Kaggle API credentials, tokens, cookies, private dataset handles, unreleased competition data, and downloaded outputs out of Git.
-- Treat public notebooks and discussions as scouting signals. Adapt ideas into the local validation workflow; do not copy code or text without checking license and attribution requirements.
+- Share competition code or derived artifacts outside the team only as the rules permit. For active competitions, respect equal-access requirements; private sharing and public sharing can have different restrictions.
+- Redistribute raw data, features, embeddings, pseudo labels, checkpoints, predictions, or submissions only when the applicable terms allow it and third-party license/attribution requirements are met.
+- Keep API credentials, tokens, cookies, and other secrets out of Git. Necessary non-secret private dataset/kernel refs may be recorded in access-controlled manifests; exclude them from public Git or documentation when disclosure is not authorized.
+- Attribute public sources when used; check licenses before copying code, prose, weights, or other assets.
 - For active competitions, prefer Kaggle-native public sharing surfaces such as public notebooks or discussion posts when the goal is to make code visible to all participants.
-- Keep producer kernels, artifact datasets, model datasets, and final consumer kernels private by default. Make them public only after an explicit rules and license check.
+- Keep experiment kernels, artifact datasets, and model outputs private by default; public visibility should be intentional and permitted.
 - If rules are ambiguous, keep materials private and record the uncertainty in the run log.
 
 ## GitHub Sharing Checklist
 
 Before pushing a competition repository to public GitHub:
 
-1. Verify the target competition allows the intended public sharing.
-2. Remove raw data, private data, generated data-derived artifacts, downloaded Kaggle outputs, model checkpoints, submissions, and score receipts when they are not allowed for redistribution.
-3. Remove secrets: `kaggle.json`, `.env`, API tokens, cookies, service credentials, and private URLs.
-4. Check all third-party packages, pretrained weights, notebooks, snippets, and copied assets for compatible licenses.
-5. Include only generic workflow code, competition-safe training/inference code, config templates, and documentation that does not expose restricted data or private team strategy.
-6. If sharing active competition solution code publicly, ensure it is genuinely public and not selectively shared outside the team.
-
-## Remote Artifact Defaults
-
-- Use private Kaggle kernels for experiments unless public visibility is intentional and rules-safe.
-- Use private Kaggle datasets for intermediate features, model checkpoints, predictions, and notebook outputs.
-- Use `kernel_sources` only for short-lived notebook-output chains; use private datasets for durable artifacts.
-- Record dataset and kernel handles in manifests, but avoid exposing private handles in public GitHub documentation when they are not intended for external access.
+Review the exact export or commit set against the terms above: exclude secrets and unauthorized data/artifacts, retain required notices, and avoid disclosing private materials through logs, manifests, or report links. Generic workflow code, permitted training/inference code, config templates, and cleared reports can remain. Artifact versioning and producer/consumer handoff mechanics belong in `kaggle-pipeline.md`.

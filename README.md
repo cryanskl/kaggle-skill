@@ -1,329 +1,123 @@
-<div align="center">
+# Agentic Kaggle Skill / 智能体驱动的 Kaggle 工作流
 
-<img src="https://img.shields.io/badge/Agentic-AI%20Driven%20Kaggle-9cf?style=for-the-badge&logo=kaggle&logoColor=white" alt="Agentic Kaggle"/>
+Reusable workflows for predictive ML, interactive simulation agents, and evidence-based competition reviews.
+用于预测建模、互动仿真智能体和竞赛复盘的可复用工作流。
 
-<br>
+Maintained here: [cryanskl/kaggle-skill](https://github.com/cryanskl/kaggle-skill).
+统一技能名称为 `agentic-kaggle-skill`，入口位于 [skills/agentic-kaggle-skill/SKILL.md](skills/agentic-kaggle-skill/SKILL.md)。
 
-# Agentic Kaggle Skill
-# 智能体驱动的 Kaggle Skill
+## Scope / 适用范围
 
-<p align="center">
-  <strong>Turn AI agents into Kaggle teammates</strong><br>
-  <strong>让 AI 智能体成为你的 Kaggle 队友</strong>
-  <br/>
-  <sub>Reusable workflows for predictive ML, simulation agents, scored execution, and evidence-based post-mortems.</sub><br>
-  <sub>覆盖预测建模、仿真对战智能体、评分执行与证据复盘的可复用工作流。</sub>
-</p>
+| Request / 请求 | Workflow / 工作方式 |
+| --- | --- |
+| Predictive ML / 预测建模 | Match validation to the test distribution, build a viable baseline, and compare models using leakage-safe held-out evidence. 按泛化目标设计验证，使用无泄漏留出证据比较模型。 |
+| Interactive agents / 互动智能体 | Validate replay semantics, executable policies, and complete games against representative opponents. 核对回放与动作语义，以完整互动对局评估策略。 |
+| Training or validation only / 限定阶段 | Deliver the requested model, evaluation, or artifact without adding a submission request. 按授权阶段交付，不隐含参赛提交。 |
+| Review or skill maintenance / 复盘与技能维护 | Audit primary sources and actual artifacts, then make supported changes. 不启动比赛训练或提交。 |
 
-<p align="center">
-  <a href="#what-it-does--这个-skill-能做什么">What It Does</a> |
-  <a href="#install--安装">Install</a> |
-  <a href="#repository-layout--仓库结构">Layout</a> |
-  <a href="#attribution-and-safety--归属与安全">Safety</a>
-</p>
+Local execution, a single Kaggle kernel, and staged producer/consumer pipelines are options chosen by evidence and budget. Submission formats and completion states follow the competition contract and the user's requested phase.
+本地、单 kernel 和多阶段流水线按证据与预算选择；提交格式和完成条件遵循比赛契约与用户要求的阶段。
 
-<p align="center">
-  <img src="https://img.shields.io/github/stars/FrankS-IntelLab/agentic-kaggle-skill?style=social" alt="GitHub stars"/>
-  <img src="https://img.shields.io/github/forks/FrankS-IntelLab/agentic-kaggle-skill?style=social" alt="GitHub forks"/>
-</p>
+## Install And Update / 安装与更新
 
-**Distilled from real Kaggle competition experience**
-**提炼自真实 Kaggle 竞赛实践**
+Use this repository as the update source. Keep a persistent checkout and back up an existing installation before replacing or relinking it.
+统一从本仓库更新。使用持久目录保存源码；已有安装先备份，再切换入口。
 
-Including: **RL Game AI** | **Audio Classification** | **LLM Reasoning** | Multi-stage debugging journeys
-包括：**强化学习游戏 AI** | **音频分类** | **LLM 推理** | 多阶段调试实践
+### Codex
 
-</div>
+For a new installation / 首次安装：
 
-## Supported Agents / 支持的智能体
-
-| Agent | Status 状态 | Notes 说明 |
-| --- | --- | --- |
-| Claude Code | First-class 一等支持 | Install as a plugin from this marketplace. 通过本插件市场安装。 |
-| Codex | First-class 一等支持 | Uses `SKILL.md`, `agents/openai.yaml`, `references/`, and `scripts/`. |
-| Hermes | Supported 支持 | Uses the same skill folder. Hermes-era notes are kept in `docs/research/`. |
-
-## Canonical Skill Identity / 统一 Skill 名称
-
-This repository keeps one canonical skill identity:
-
-本仓库使用一个统一的 skill 名称：
-
-```yaml
-name: agentic-kaggle-skill
+```bash
+mkdir -p "$HOME/.local/share" "$HOME/.agents/skills"
+git clone https://github.com/cryanskl/kaggle-skill.git "$HOME/.local/share/kaggle-skill"
+ln -s "$HOME/.local/share/kaggle-skill/skills/agentic-kaggle-skill" "$HOME/.agents/skills/agentic-kaggle-skill"
 ```
 
-The skill is written in the open agent skills format so it can be used by multiple agents. Codex-specific metadata lives in `agents/openai.yaml`; Hermes users can consume the same root `SKILL.md` and bundled resources.
+If a checkout already exists, reuse its actual path instead of cloning another copy. If the skill path exists, preserve its changes before switching the link. The linked installation follows changes in that checkout.
+已有 checkout 时复用实际路径；已有技能目录时先保留改动，再切换链接。链接安装直接使用源码目录的内容。
 
-该 skill 使用开放 agent skill 格式编写，可被多个智能体使用。Codex 专属元数据放在 `agents/openai.yaml`；Hermes 用户可以直接使用根目录的 `SKILL.md` 以及配套的 `references/` 和 `scripts/`。
+Update the checkout / 更新源码：
 
-## What It Does / 这个 Skill 能做什么
+```bash
+git -C "$HOME/.local/share/kaggle-skill" pull --ff-only origin main
+```
 
-Transform Kaggle work from scattered manual iteration into an agent-assisted competition loop:
+Use the path of your existing checkout when it differs. A copied installation needs an explicit resync after updating; a linked installation does not.
+若现有 checkout 位于其他路径，使用该路径。复制安装需要另行同步，链接安装无需再次复制。
 
-将 Kaggle 工作从零散的手动试错转为智能体辅助的竞赛闭环：
+Invoke / 调用：
 
-| Before 之前 | After 之后 |
-| --- | --- |
-| Manual notebook analysis 手动分析 notebook | Agent scouts public notebooks and discussions as signals 智能体将公开 notebook 和讨论作为线索 |
-| Guess why submissions fail 猜测提交失败原因 | Agent diagnoses format, path, runtime, and hidden rerun issues 智能体诊断格式、路径、运行时和隐藏重跑问题 |
-| Try random improvements 随机尝试改进 | Predictive folds/OOF or interactive episode validation 按任务使用 fold/OOF 或互动整局验证 |
-| One overloaded notebook 一个超载 notebook | Producer/consumer pipeline with private artifact datasets 使用私有 artifact dataset 的生产者/消费者流水线 |
+```text
+Use $agentic-kaggle-skill to help with this Kaggle request.
+```
 
-Core capabilities:
+For repository-scoped use, link the same skill subdirectory under that repository's `.agents/skills/`.
+仓库级使用时，将同一技能子目录链接到项目的 `.agents/skills/`。
 
-核心能力：
-
-- Read Kaggle rules, data terms, metric, submission format, and scoring mode before modeling.
-  建模前先阅读竞赛规则、数据条款、指标、提交格式和评分模式。
-- Build metric-correct predictive baselines with stable folds and out-of-fold predictions.
-  为预测任务构建指标正确、fold 稳定、带 OOF 预测的 baseline。
-- Build simulation agents with replay action contracts, executable BC/RL policies, and complete-game evaluation against interactive opponents.
-  为仿真对战建立回放动作契约、可执行 BC/RL 策略，并以互动对手的完整比赛验证。
-- Audit solution writeups and actual team artifacts for requested post-mortems without launching training or submissions.
-  按复盘请求审核方案原文与团队实际产物，交付分析，不启动训练或提交。
-- Use public notebook and discussion intelligence as scouting signals, not copied source.
-  将公开 notebook 和讨论作为侦察信号，而不是直接复制来源。
-- Offload heavy work to Kaggle notebooks/scripts when local compute is insufficient.
-  本地算力不足时，将重任务转移到 Kaggle notebook/script。
-- Support staged producer/consumer notebook pipelines with private artifact datasets.
-  支持带私有 artifact dataset 的多阶段生产者/消费者 notebook 流水线。
-- Handle code-competition hidden rerun failures, vague scoring errors, timeouts, and OOMs.
-  处理代码竞赛隐藏重跑失败、模糊评分错误、超时和 OOM。
-- Track reproducibility artifacts, run logs, score receipts, and ensemble evidence.
-  记录可复现 artifact、运行日志、提交回执和集成证据。
-- For execution, collect hosted scoring evidence or record a concrete blocker; retain an existing scored incumbent when no upgrade passes within a defined improvement budget.
-  执行任务收集托管评分证据或明确阻塞；已有评分版本的提升任务在预算内无合格升级时保留原版。
-
-## Install / 安装
-
-### Claude Code (plugin marketplace)
-
-This repository is a Claude Code plugin marketplace. Add it and install the plugin:
-
-本仓库是一个 Claude Code 插件市场。添加后即可安装插件：
+### Claude Code
 
 ```text
 /plugin marketplace add cryanskl/kaggle-skill
 /plugin install kaggle-skill@kaggle-skill
 ```
 
-The `agentic-kaggle-skill` skill is then available automatically, or invoke it with `/kaggle-skill:agentic-kaggle-skill`.
+Invoke with `/kaggle-skill:agentic-kaggle-skill`. The plugin uses the same skill instructions.
+插件使用同一套技能说明。
 
-安装后 `agentic-kaggle-skill` 会自动可用，也可以用 `/kaggle-skill:agentic-kaggle-skill` 显式调用。
+### Hermes And Other Hosts / 其他宿主
 
-### Codex
+Install the complete `skills/agentic-kaggle-skill/` directory using the host's skill mechanism, including its references and scripts. Preserve local changes before refreshing a copied installation.
+按宿主的技能机制安装完整子目录，包含 references 与 scripts；更新复制安装前保留本地改动。
 
-Install as a user-level Codex skill:
+### Helper Dependencies / 辅助工具依赖
 
-作为用户级 Codex skill 安装：
-
-```bash
-mkdir -p ~/.agents/skills
-git clone https://github.com/cryanskl/kaggle-skill.git /tmp/kaggle-skill && \
-  cp -r /tmp/kaggle-skill/skills/agentic-kaggle-skill ~/.agents/skills/agentic-kaggle-skill
-```
-
-Restart Codex if the skill does not appear immediately. Invoke it explicitly with:
-
-如果 skill 没有立即出现，请重启 Codex。可以这样显式调用：
-
-```text
-Use $agentic-kaggle-skill to help me start this Kaggle competition.
-```
-
-For repo-scoped development, place or symlink this folder under a repository's `.agents/skills/` directory:
-
-如果只想在某个仓库中启用，可以把该目录放到或软链接到仓库的 `.agents/skills/`：
-
-```bash
-mkdir -p .agents/skills
-ln -s /path/to/agentic-kaggle-skill .agents/skills/agentic-kaggle-skill
-```
-
-### Hermes
-
-Install the whole skill folder so references and scripts are available:
-
-安装完整 skill 目录，确保 references 和 scripts 都可用：
-
-```bash
-mkdir -p ~/.hermes/skills/data-science
-git clone https://github.com/cryanskl/kaggle-skill.git /tmp/kaggle-skill && \
-  cp -r /tmp/kaggle-skill/skills/agentic-kaggle-skill ~/.hermes/skills/data-science/agentic-kaggle
-```
-
-Then ask Hermes to use the agentic Kaggle skill for competition work.
-
-然后让 Hermes 使用 agentic Kaggle skill 来处理竞赛任务。
-
-### Helper Script Dependencies / 辅助脚本依赖
-
-Most scripts use only the Python standard library. `scripts/make_folds.py` requires pandas and numpy; scikit-learn is recommended for standard splitters.
-
-大部分脚本只依赖 Python 标准库。`scripts/make_folds.py` 需要 pandas 和 numpy；推荐安装 scikit-learn 以使用标准切分器。
+The helpers are optional if the project already has equivalent tools. From the repository root / 从仓库根目录：
 
 ```bash
 python3 -m pip install -r skills/agentic-kaggle-skill/requirements.txt
+python3 skills/agentic-kaggle-skill/scripts/prepare_kaggle_kernel.py --help
 ```
 
-## Repository Layout / 仓库结构
+Most helpers use the Python standard library; `make_folds.py` uses pandas/numpy with optional scikit-learn splitters.
+
+## Layout And Rule Ownership / 目录与规则归属
 
 ```text
 kaggle-skill/
-├── .claude-plugin/
-│   ├── plugin.json
-│   └── marketplace.json
-├── README.md
-├── LICENSE
-├── docs/                          # historical notes, not loaded by the skill
-│   ├── examples/
-│   │   ├── rl-game-case-study.md
-│   │   └── audio-classification-case-study.md
-│   └── research/
-└── skills/
-    └── agentic-kaggle-skill/
-        ├── SKILL.md
-        ├── requirements.txt
-        ├── agents/
-        │   └── openai.yaml
-        ├── references/
-        │   ├── method-map.md
-        │   ├── information-sharing-policy.md
-        │   ├── competition-intel.md
-        │   ├── cross-validation-and-metrics.md
-        │   ├── simulation-game-agents.md
-        │   ├── tabular-workflow.md
-        │   ├── image-text-workflow.md
-        │   ├── kaggle-offload.md
-        │   ├── kaggle-pipeline.md
-        │   ├── advanced-notebook-architecture.md
-        │   ├── ensembling-and-reproducibility.md
-        │   ├── submission-endgame.md
-        │   └── code-competition-debugging.md
-        └── scripts/
-            ├── scaffold_competition.py
-            ├── make_folds.py
-            ├── prepare_kaggle_kernel.py
-            └── prepare_kaggle_dataset.py
+├── .claude-plugin/                    # plugin metadata
+├── docs/                              # historical cases and maintenance records
+└── skills/agentic-kaggle-skill/
+    ├── SKILL.md                       # request scope, workflow, resource routing
+    ├── agents/openai.yaml             # Codex UI metadata
+    ├── references/                    # details loaded when relevant
+    ├── scripts/                       # optional repeatable helpers
+    └── requirements.txt
 ```
 
-## Case Studies / 案例研究
-
-### RL Strategy Game Competition / 强化学习策略游戏竞赛
-
-| Lesson 教训 | Details 详情 |
+| Canonical reference / 维护位置 | Responsibility / 职责 |
 | --- | --- |
-| Feature completeness 功能完整性 | Top agents used much richer decision logic; simplified agents underperformed. 顶级 agent 使用更完整的决策逻辑，简化版表现明显较弱。 |
-| Time budget 时间预算 | Strict turn limits require profiling after each change. 严格回合限制要求每次改动后都做性能分析。 |
+| [Validation](skills/agentic-kaggle-skill/references/cross-validation-and-metrics.md) | Splits, held-out/OOF definitions, upstream exposure, metric aggregation and confirmation. |
+| [Simulation agents](skills/agentic-kaggle-skill/references/simulation-game-agents.md) | Episode data, action semantics, interactive evaluation and BC/RL choices. |
+| [Pipeline](skills/agentic-kaggle-skill/references/kaggle-pipeline.md) | Submission contracts, inference servers and reusable artifact handoffs. |
+| [Compute](skills/agentic-kaggle-skill/references/kaggle-offload.md) | Remote execution, run logs and output retrieval. |
+| [Endgame](skills/agentic-kaggle-skill/references/submission-endgame.md) | Authorized scoring, completion/stop states, receipts and final selection. |
+| [Debugging](skills/agentic-kaggle-skill/references/code-competition-debugging.md) | Failure diagnosis and budgeted retries. |
 
-[Full case study / 完整案例](docs/examples/rl-game-case-study.md)
+The entry point links the remaining modality, ensembling, architecture, intel and sharing references. Historical `docs/` are not required by the installed skill.
+其余模态、集成、架构、情报与分享规则由主入口按需引用；安装后的技能不依赖历史 `docs/`。
 
-### Audio Classification Competition / 音频分类竞赛
+## Maintain / 维护
 
-| Lesson 教训 | Details 详情 |
-| --- | --- |
-| Hybrid ensemble 混合集成 | Temporal model plus SED-style models can improve robustness. 时序模型加 SED 风格模型可提升稳健性。 |
-| Silent failures 静默失败 | Log exceptions during feature extraction and inference. 特征提取和推理阶段需要记录异常。 |
+- Keep detailed rules in their owning reference and link to them elsewhere. 规则集中维护，其他位置引用。
+- Treat defaults and examples as choices; reserve hard requirements for contracts, evidence integrity and actual constraints. 区分建议、示例与真实约束。
+- Check skill metadata, resource links and realistic request behavior before publishing. 发布前校验结构与真实请求下的决策。
+- Follow [sharing and licensing guidance](skills/agentic-kaggle-skill/references/information-sharing-policy.md) before publishing competition-derived material.
 
-[Full case study / 完整案例](docs/examples/audio-classification-case-study.md)
+[Historical examples](docs/examples/) · [Research notes](docs/research/) · [Maintenance records](docs/maintenance/)
 
-## Design Notes / 设计说明
+## Attribution And License / 归属与许可
 
-`SKILL.md` is the canonical entry point. It stays concise and tells the agent which reference file to load for each Kaggle workflow.
+Based on the original [Frank S (IntelLab) skill](https://github.com/FrankS-IntelLab/agentic-kaggle-skill), with maintenance and extensions in this repository. Preserve third-party attribution when adapting public material.
+基于原始技能维护与扩展；使用外部材料时保留适用的第三方归属。
 
-`SKILL.md` 是统一入口，保持简洁，并告诉智能体在不同 Kaggle 工作流中应该加载哪个参考文件。
-
-`agents/openai.yaml` is Codex-facing UI metadata. It does not fork the workflow; it only improves how the skill appears and is invoked in Codex.
-
-`agents/openai.yaml` 是面向 Codex 的 UI 元数据，不分叉工作流，只改善该 skill 在 Codex 中的展示与调用体验。
-
-`references/` contains detailed workflow guidance loaded only when relevant. The top-level `docs/` folder preserves earlier Hermes-era lessons, troubleshooting notes, automation patterns, and case studies; the useful generic lessons have been folded into `references/`, so `docs/` is not loaded by the skill.
-
-`references/` 存放按需加载的详细流程说明。顶层 `docs/` 保留早期 Hermes 阶段的经验、故障排除、自动化模式和案例研究；其中通用的经验已并入 `references/`，skill 运行时不会加载 `docs/`。
-
-`scripts/` contains repeatable utilities for scaffolding a Kaggle project, making folds, preparing Kaggle kernels, and preparing private Kaggle artifact datasets.
-
-`scripts/` 存放可复用工具，用于创建 Kaggle 项目骨架、生成 folds、准备 Kaggle kernels，以及准备私有 Kaggle artifact datasets。
-
-## Attribution And Safety / 归属与安全
-
-This skill is source-agnostic. It packages general competitive ML and Kaggle workflow procedures rather than copying named public notebooks, books, or papers.
-
-该 skill 是 source-agnostic 的。它封装的是通用竞赛机器学习和 Kaggle 工作流流程，而不是复制某个公开 notebook、书籍或论文。
-
-When using public notebooks or discussions during an active competition, treat them as scouting signals. Do not copy code, text, model artifacts, generated features, or data-derived outputs without checking the competition rules, data license, third-party license obligations, and attribution requirements.
-
-在进行中的竞赛中使用公开 notebook 或讨论时，应将其视作侦察信号。不要在未检查竞赛规则、数据许可、第三方许可证义务和归属要求前复制代码、文本、模型 artifact、生成特征或数据派生输出。
-
-## Development / 开发维护
-
-Keep the public identity aligned everywhere:
-
-请保持所有位置的公开名称一致：
-
-```text
-agentic-kaggle-skill
-```
-
-When updating the skill:
-
-更新 skill 时：
-
-1. Keep the canonical workflow in `SKILL.md`.
-   将统一工作流保留在 `SKILL.md`。
-2. Put detailed procedure in `references/`.
-   将详细流程放入 `references/`。
-3. Put deterministic helpers in `scripts/`.
-   将确定性辅助工具放入 `scripts/`。
-4. Regenerate or update `agents/openai.yaml` when the skill name, scope, or default prompt changes.
-   当 skill 名称、范围或默认 prompt 变化时，更新 `agents/openai.yaml`。
-5. Validate the skill metadata before release.
-   发布前验证 skill 元数据。
-
-## Why Star This Repo? / 为什么 Star？
-
-- Battle-tested patterns from real competitions.
-  来自真实竞赛的实战模式。
-- Bilingual documentation for English and Chinese users.
-  面向英文与中文用户的双语文档。
-- Practical troubleshooting for common Kaggle issues.
-  覆盖常见 Kaggle 问题的实用故障排除。
-- Codex-ready organization with Hermes compatibility.
-  Codex-ready 的组织方式，同时兼容 Hermes。
-- Case studies with concrete competition lessons.
-  带有具体竞赛经验的案例研究。
-
-## Contributing / 贡献
-
-Found a new pattern or solved a tricky error?
-
-发现了新模式或解决了棘手错误？
-
-1. Fork the repo.
-   Fork 仓库。
-2. Add your insight to `skills/agentic-kaggle-skill/references/` (loaded by the skill) or `docs/` (background notes).
-   将你的洞察添加到 `skills/agentic-kaggle-skill/references/`（skill 会加载）或 `docs/`（背景资料）。
-3. Submit a pull request.
-   提交 PR。
-
-## License / 许可证
-
-MIT. See `LICENSE`.
-
-MIT。见 `LICENSE`。
-
-<div align="center">
-
-**Made by [Frank S (IntelLab)](https://github.com/FrankS-IntelLab)**
-**由 [Frank S (IntelLab)](https://github.com/FrankS-IntelLab) 创建**
-
-[![Kaggle](https://img.shields.io/badge/Kaggle-franksunp-blue?logo=kaggle)](https://www.kaggle.com/franksunp)
-[![GitHub](https://img.shields.io/badge/GitHub-FrankS--IntelLab-black?logo=github)](https://github.com/FrankS-IntelLab)
-
-<br>
-
-*If this skill helped your Kaggle journey, star the repo.*
-*如果这个 skill 帮助了你的 Kaggle 旅程，欢迎 Star 这个仓库。*
-
-</div>
+MIT. See [LICENSE](LICENSE).

@@ -1,12 +1,12 @@
 # Competition Intelligence
 
-Use this reference when a Kaggle competition slug, URL, title, or search phrase is available and public notebook solutions or discussion activity may inform the plan.
+Use when public solutions or discussions may inform execution, or when the user requests their analysis. Start with specifically requested sources; open-ended scouting should not displace a bounded comparison.
 
 Public notebooks and discussions are scouting signals, not permission to copy code, text, data, or private strategy. See `information-sharing-policy.md`.
 
 ## Source 1: `kaggle-competition-intel` MCP Tools (when installed)
 
-Use `top_open_solutions` for public notebook intelligence:
+For compatible tool versions, `top_open_solutions` can scout public notebooks. Check the available tool schema; this is an example request:
 
 ```json
 {
@@ -31,9 +31,9 @@ Use `competition_discussions` for discussion intelligence:
 }
 ```
 
-Use the defaults above when the user has not specified values, and state the scouting depth and vote threshold in the report.
+For open-ended scouting, these are reasonable starting depths when the user has not specified values. Report the chosen coverage and threshold; adapt them to the task and available tool version.
 
-## Source 2: Kaggle CLI (always available with credentials)
+## Source 2: Kaggle CLI (when available)
 
 ```bash
 # top public-scored and most-voted notebooks
@@ -55,7 +55,7 @@ kaggle competitions leaderboard SLUG -s
 
 Fetch the competition's Discussion and Code tabs when browsing is available, or read links the user provides. Prioritize pinned/sticky topics, topics with many votes, and topics mentioning data bugs, leakage, metric clarifications, or rule changes.
 
-If none of the sources are available, proceed with the baseline workflow and note that live intel was unavailable.
+If sources are unavailable, record the gap. An execution request may still proceed with a suitable baseline when useful; an analysis request should report its limited evidence without launching modeling or inventing source content.
 
 ## How To Use Results
 
@@ -70,7 +70,7 @@ Extract actionable patterns:
 - Leaderboard risk: suspicious public-only tricks, overly tuned thresholds, or public LB chasing.
 - Discussion signals: rule clarifications, data bugs, leakage warnings, metric traps, resource constraints, high-signal Q&A, newly shared techniques.
 
-Adapt ideas into the local validation and artifact discipline; do not paste notebooks in. Do not publish participant names, handles, or private links in generic reports unless the user explicitly needs source attribution for a public resource.
+Adapt ideas into local validation rather than pasting notebooks in. Attribute public sources with their titles, URLs, and authors/handles when useful; protect private identities, links, and materials under `information-sharing-policy.md`.
 
 For claims that change the strategy:
 
@@ -81,12 +81,4 @@ For claims that change the strategy:
 
 ## Reporting
 
-When summarizing intel, include:
-
-- Competition slug/title and metric.
-- Score-ranked notebook title, public score, votes, last run time, and URL.
-- Latest high-vote notebook title, votes, last run time, public score if available, and URL.
-- Top-voted and latest-replied discussion title, votes, comment count, latest reply time, and URL.
-- Common technique themes.
-- Which ideas are worth testing locally.
-- Which ideas look risky because they may depend on public leaderboard overfitting or leakage.
+Report the competition and metric, relevant source titles/URLs and dates, what was actually read, evidence gaps, and actionable hypotheses. Include scores, votes, versions, or discussion activity when available and useful to the selection; do not require irrelevant metadata for a supplied-writeup comparison. Separate ideas worth testing from risks such as leakage or public-LB overfitting.

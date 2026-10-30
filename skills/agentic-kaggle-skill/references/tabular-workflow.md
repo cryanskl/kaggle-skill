@@ -1,77 +1,34 @@
 # Tabular Workflow
 
-## Strong Baseline
+Use `cross-validation-and-metrics.md` for split design, target leakage, upstream exposure, metrics, and confirmation. Reuse the chosen holdout or folds across comparisons.
 
-1. Load train/test, mark target, ID, groups, time columns, categorical columns, numeric columns, and leaks to exclude.
-2. Create folds and freeze them.
-3. Implement the metric locally.
-4. Train a tree boosting baseline with early stopping and OOF/test predictions.
-5. Create one clean submission and verify row order and IDs.
-6. Add features, encodings, and model variants only after the baseline is reproducible.
+## Baseline And Representation
 
-## Categorical Variables
+Identify target, IDs, groups/time, numeric and categorical columns, missingness, and unavailable-at-inference features. A tree booster is a useful baseline for ordinary tables; sparse linear models or neural representations may be more suitable for the actual inputs and budget. Verify the metric, row identity, and inference path before extensive feature search.
 
-Use the model family to choose encodings:
+Choose encodings for the model family:
 
-- Tree boosting: label encoding, ordinal/category dtype, count encoding, frequency encoding, rare-category grouping, CatBoost native categorical handling.
-- Linear models: one-hot encoding, hashing trick, target/frequency features, sparse matrices.
-- Neural nets: integer categories plus embeddings, especially for many high-cardinality fields.
+- Tree models: categorical dtype or native categorical support, label/count/frequency encodings, and rare-category handling when useful.
+- Linear models: one-hot or hashing, sparse features, and appropriate scaling.
+- Neural models: categorical embeddings or other representations when their expected benefit justifies training cost.
 
-Target encoding rules:
+For target encoding, cross-fit statistics for training rows within the evaluation split, and compute evaluation statistics from its training partition only. Smooth rare categories when needed; no row may see its own target through an encoding. A final full-data fit can build test-time statistics from the permitted training data.
 
-- Compute target statistics out-of-fold for train and from full train for test.
-- Use smoothing to reduce noise in rare categories.
-- Add noise or regularization when overfitting appears.
-- Never let a row see its own target through an encoding.
+## Feature Candidates
 
-Useful categorical features:
+Try features with a plausible inference-time meaning:
 
-- Missingness flags and explicit unknown category.
-- Category counts, frequencies, nunique by group, and cross-category combinations.
-- Train/test category mismatch indicators.
-- Aggregated target-free statistics by entity, time, location, or product.
+- Missingness and unknown-category flags; category counts/frequencies and cross-category combinations.
+- Numeric transforms, ratios, differences, interactions, and group-normalized values.
+- Date parts, recency, elapsed periods, lags, and trends using only information available at the prediction time.
+- Entity/time/location aggregates whose source rows respect the validation and inference protocol.
 
-## Numeric And Date Features
+Inspect train/test availability and drift rather than deleting a feature merely because the distributions differ. For learned feature construction, follow the validation boundary above.
 
-- Add missing indicators when missingness is informative.
-- Try log, rank, clipping, binning, ratios, differences, interactions, and group-normalized features.
-- Extract date parts: year, month, week, day, day of week, hour, holiday, season, elapsed time, recency, and period index.
-- Build grouped aggregations: count, mean, median, min, max, std, sum, nunique, last, first, difference from group mean, and trend.
-- For linear/SVM/neural models, scale numeric features. For tree models, scaling is usually unnecessary.
+## Selection And Tuning
 
-## Feature Selection
+Remove accidental duplicates, unusable constants, and known post-outcome leaks. Use fold/holdout error analysis, permutation importance, and model importance as diagnostics; a ranking alone is not a promotion gate. Correlation pruning or recursive elimination are optional when appropriate for the model and budget.
 
-Do selection inside the validation loop when it learns from target or distribution.
+Tune after the baseline and validation are stable. For boosting, useful candidates include learning rate/iterations with early stopping, depth/leaves, minimum child size, sampling, regularization, and class weighting. Use a bounded search suited to cost; random/Bayesian search or small targeted grids are choices, not mandatory stages.
 
-Start by removing:
-
-- Constant and near-constant features.
-- Duplicate columns.
-- Obvious ID leaks and post-outcome columns.
-- Features with impossible train/test drift unless drift itself is the signal.
-
-Then compare:
-
-- Model importances across folds.
-- Permutation importance on validation folds.
-- Correlation pruning for linear models.
-- Univariate selection only as a weak signal.
-- Recursive elimination only when the feature count and runtime make it practical.
-
-Keep a feature only when CV improves or it contributes useful diversity to an ensemble.
-
-## Hyperparameter Tuning
-
-Tune after validation and baseline code are stable.
-
-Prioritize:
-
-- Learning rate and number of estimators with early stopping.
-- Tree depth, leaves, min child samples/weight.
-- Row and column sampling.
-- L1/L2 regularization.
-- Class weights or scale-pos-weight for imbalanced classification.
-
-Use random/Bayesian search over wide but sensible ranges before fine grids. Tune on fold averages, not a single lucky fold. Save every trial's params, seed, fold scores, and artifacts.
-
-Avoid tuning noisy features and model params at the same time. If the CV signal is smaller than fold variance, simplify or gather more validation evidence.
+Compare paired validation changes and group regressions, not a lucky fold or a raw comparison against fold standard deviation. Keep simpler alternatives when gains are uncertain; a feature with weak standalone value can still be useful in a validated combination. Save selection history so repeated searches are not presented as untouched confirmation.

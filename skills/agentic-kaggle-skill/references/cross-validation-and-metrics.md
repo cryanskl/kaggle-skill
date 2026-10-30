@@ -1,61 +1,38 @@
 # Cross-Validation And Metrics
 
-## Fold Design Checklist
+Use for predictive ML. Interactive policies use `simulation-game-agents.md` instead of row-level folds.
 
-Choose validation before modeling:
+## Validation Contract
 
-- Identify what one test row represents and how Kaggle likely sampled the hidden set.
-- Check duplicate IDs, near-duplicate text/images, repeated users, patients, stores, products, locations, sessions, and timestamps.
-- Decide whether labels need stratification, groups need isolation, or time needs ordering.
-- Add a persistent `fold` column to the train table and use it in every script.
-- Report mean, standard deviation, and per-fold scores.
-- Keep OOF predictions for diagnostics, thresholding, blending, and stacking.
+Choose the evaluation unit and hidden-test generalization target before modeling. Save reusable split IDs or a split manifest; a `fold` column is convenient when using cross-validation, not mandatory for a holdout.
+
+**Leakage-safe held-out predictions** are produced without fitting on the evaluation labels or using information unavailable under the intended inference protocol. They may be cross-fitted **OOF predictions** or predictions on an **independent holdout**. Both can support diagnostics, calibration, blending, and stacking when their coverage and provenance are appropriate. Do not call in-sample predictions OOF. A final refit on all permitted training data need not repeat K folds, but its training predictions are not new held-out evidence.
+
+Separate data used to fit or select a correction from data used to confirm it. Repeated tuning on one panel makes that panel selection evidence, not untouched confirmation. A meta-model fitted on held-out base predictions still needs its own assessment; see `ensembling-and-reproducibility.md`.
 
 ## Split Selection
 
-Use `StratifiedKFold` for ordinary classification. For imbalanced targets, keep class ratios stable and inspect minority-class counts per fold.
+- For independent classification examples, use stratification when class coverage matters. For ordinary regression, random folds or a holdout may suffice; target-bin stratification is optional if it improves coverage without violating group/time constraints.
+- Group related records and their augmented or near-duplicate variants when the target is transfer to unseen entities, sources, patients, or scenes. Repeated entity IDs alone do not require GroupKFold: forecasting future observations of known stores or users may instead require a time split.
+- For ordered events, use time holdouts or expanding windows that match forecast horizon and information availability. Combine group and time constraints when the test requires both; document any coverage tradeoff.
+- Choose the number of folds or holdout size for available independent units, class coverage, runtime, and precision. Do not treat a fixed fold count as a universal requirement.
 
-Use `KFold` for ordinary regression. If the target is skewed or multimodal, bin the target and stratify on bins. A good default bin count is Sturges' rule: `1 + log2(n_rows)`.
+## Leakage And Upstream Exposure
 
-Use `GroupKFold` when the same entity can appear multiple times. Common groups are user, patient, product, session, document, author, household, image source, prompt, location, and time block.
+- Fit data-dependent transforms and encoders within training partitions. Cross-fit target-derived training features where needed; never use evaluation labels in their construction. If the rules allow transductive inputs, record that access and evaluate the same protocol.
+- Audit duplicate IDs, hashes, text, and source overlap across train/test. Record provenance and label availability before deciding whether overlap is valid signal, contamination, or a join error; do not automatically replace modeling with lookup.
+- Record training groups, label exposure, and versions of upstream checkpoints or cached features, including public baselines. A downstream split cannot undo upstream exposure to validation labels. Upstream predictions must respect the chosen group/time protocol and exclude the relevant evaluation targets, or use an independent untouched holdout. Mark unknown coverage and conditional diagnostics explicitly; do not fit a stacker on target-exposed predictions or present unknown coverage as leakage-safe validation.
+- When learning corrections across sources, inspect missing-label policies, units, coordinate conventions, class definitions, and annotation timing. Treat differences as hypotheses to validate, not offsets to apply blindly to an unseen group.
 
-Use a stratified group split when both label balance and group isolation matter. If the installed scikit-learn has `StratifiedGroupKFold`, use it; otherwise decide whether group isolation or label balance is the higher risk and document the tradeoff.
+## Comparison And Confirmation
 
-Use time-aware validation when chronological leakage is possible. Sort by time and create holdouts that mimic the public/private periods.
+- Compare candidates on the same evaluation examples with the official aggregation. Recompute pooled/nonlinear metrics rather than averaging per-example or per-group score deltas; fold mean/std remain useful diagnostics.
+- Estimate uncertainty at the independent unit, such as patient, site, or time block. Many clips from two subjects do not establish broad cross-subject validity. Report group coverage, paired differences, and sensitivity where useful.
+- Use small panels for debugging and cheap rejection. Before promotion, freeze the candidate and acceptance rule, then confirm on independent groups where feasible. After extensive adaptive tuning, use untouched confirmation or nested evaluation; if infeasible, report the resulting selection uncertainty.
+- When public scores disagree with local validation, inspect split semantics, metric implementation, submission format, upstream exposure, and drift before tuning to the leaderboard.
 
-## Leakage Checks
+## Metric Contract
 
-- Feature values computed using all rows before splitting can leak validation information. Fit transforms inside each fold.
-- Target encoding must be out-of-fold.
-- Scaling, imputation, SVD/PCA, vectorizers, oversampling, feature selection, and threshold search must be trained only on training-fold data when they learn from data.
-- Augment images only after splitting; never let augmented variants cross folds.
-- Near-duplicate rows should stay in the same fold or be removed.
-- Check whether test rows (IDs, prompts, texts, image hashes) also appear in train. Exact or near matches change the approach from modeling to lookup and are common in text/QA competitions; record the overlap rate either way.
-- If CV and public LB disagree, audit split choice, metric implementation, submission format, and train/test drift before chasing the leaderboard.
+Reproduce the competition metric, including transforms, weights, class/ID order, aggregation, clipping, and required output range. Optimize a surrogate only after checking how its changes affect that metric. Tune thresholds and calibration on leakage-safe held-out predictions, keeping final confirmation separate from selection.
 
-## Upstream Exposure And Confirmation
-
-- Record training groups, label exposure, folds, and versions of upstream checkpoints or cached features, including public baselines; mark unknown coverage. A downstream split cannot undo upstream exposure to validation labels. Use upstream predictions that excluded evaluation groups or an independent untouched holdout; otherwise label the result a conditional diagnostic, not end-to-end OOF, and do not train a stacker on exposed predictions.
-- Use small panels for debugging and cheap rejection. Before promotion, freeze the candidate and acceptance rule, then confirm on broader independent groups where feasible. After extensive adaptive tuning, use an untouched confirmation set or nested evaluation rather than reusing the selection panel as confirmation.
-- Compare on the same examples with the actual aggregation rule. Recompute pooled/nonlinear metrics instead of averaging per-example or per-group score deltas. Report paired differences and group or leave-one-group-out sensitivity when useful.
-- Estimate uncertainty at the independent unit, such as patient, site, or time block. Many clips from two subjects do not establish broad cross-subject validity; report coverage and untested groups under a tight budget.
-- When learning corrections across sources, audit missing-label policies, units, coordinate conventions, class definitions, and annotation timing first. Treat source differences as hypotheses to validate, not offsets to apply blindly to an unseen group.
-
-## Metric Selection
-
-Use the competition metric exactly. Common mappings:
-
-- Binary classification: log loss, ROC AUC, PR AUC, F1, MCC, accuracy, or balanced accuracy.
-- Multiclass: multiclass log loss, macro/micro F1, accuracy, Cohen's kappa.
-- Multilabel: per-class log loss, mean F1, label-ranking average precision, mAP.
-- Regression: RMSE, RMSLE, MAE, MAPE, R2, correlation, quantile loss.
-- Ranking/recommendation: MAP@K, NDCG@K, hit rate, recall@K.
-- Segmentation: Dice, IoU/Jaccard, pixel accuracy, boundary-aware metrics.
-
-For custom metrics, inspect the scorer and data contract for matching, sparse annotation semantics, ignored predictions, clipping/caps, count penalties, and aggregation. An unannotated example is not automatically a negative. Local scorer agreement does not establish hosted-reader compatibility; use the format checks in `submission-endgame.md` as well.
-
-When the metric has thresholds, tune thresholds on OOF predictions only. For F1/MCC/kappa, thresholding can matter as much as model choice.
-
-For log-loss style metrics, calibrate probabilities, avoid overconfident clipping mistakes, and validate the exact label order in the submission.
-
-For RMSLE, train or evaluate in log space only if it matches the metric and the target is nonnegative. Clip negative predictions before scoring when required.
+For custom scorers, inspect matching, sparse annotation semantics, ignored predictions, count penalties, and caps. An unannotated example is not automatically a negative. Local scorer agreement does not establish hosted-reader compatibility; use `submission-endgame.md` for the submission contract and format checks.

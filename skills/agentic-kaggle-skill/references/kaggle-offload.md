@@ -1,78 +1,50 @@
 # Kaggle Compute Offload
 
-Use Kaggle as a remote execution target when local work is likely to OOM, exceed local runtime, need GPU/TPU, need competition-mounted data, or require reproducible training/inference in a Kaggle-like environment.
+Use Kaggle when its data mounts, hardware, runtime, or reproducibility needs make it a suitable execution target. Local execution remains appropriate when it fits the task, budget, and user preferences. Remote execution does not imply a multi-stage architecture or permission to submit.
 
-## When To Offload
+## Choose And Prepare The Runtime
 
-Prefer Kaggle notebooks/scripts instead of local execution for:
+- Compare local RAM/VRAM, expected runtime, available Kaggle hardware/quota, and scoring-environment requirements. GPU work or full-fold training does not automatically require offload.
+- When feasible, smoke-test imports, required paths, one representative batch, metric computation, and output schema before a large run.
+- If a game environment is missing locally, check its supported package/version first. Choose an available compatible environment or a pinned source installation when justified; do not silently change the rules version.
+- Confirm CLI/connector authentication and the actual competition inputs and resource limits. Inspect current command help when flags or accelerator names are uncertain.
 
-- Deep learning training, transformer inference, image segmentation, embedding generation, large CV folds, or test-time augmentation.
-- Jobs requiring GPU, high-memory GPU, TPU, or Kaggle-mounted competition data.
-- Full-fold training after a small local smoke test passes.
-- Any run where local RAM/VRAM pressure risks killing the session or slowing the user's machine.
-- Simulation/game competitions whose environment is missing from the local `kaggle-environments` package (`Unknown Environment Specification`): test agents in a Kaggle notebook, or install the package from GitHub source (`pip install -e /path/to/kaggle-environments --no-deps`) when local iteration matters.
+## Kernel Execution
 
-Do a tiny local smoke test first when possible: imports, path checks, one batch, one fold subset, metric function, output file names, and submission schema.
+1. Prepare `kernel-metadata.json` and its script/notebook entry point. `scripts/prepare_kaggle_kernel.py` provides a self-contained scaffold; replace its smoke placeholders before treating it as a competition run.
+2. Provide helpers and required inputs through mechanisms the platform actually uploads or mounts. Set supported competition/dataset/kernel/model sources and the required network/accelerator settings.
+3. Push the kernel, monitor within the authorized budget, then retrieve outputs or failure evidence.
+4. Check the run's identity, config, metrics, and artifact manifest. Preserve observed failures and their logs.
+5. If the user requested only training, validation, or a code fix, deliver that stage's artifacts. If hosted submission was requested, hand off to `submission-endgame.md`; it owns completion states. Use `code-competition-debugging.md` for failures and `kaggle-pipeline.md` for staged artifact handoffs.
 
-## Kaggle Kernel Flow
-
-1. Ensure Kaggle CLI auth is available. If `kaggle` is missing, install it or ask the user to install/authenticate it before remote execution.
-2. Create a kernel folder with `kernel-metadata.json` and a single self-contained code file. Use `scripts/prepare_kaggle_kernel.py` for a starter folder. `kaggle kernels push` uploads only the code file named in the metadata; helper modules must be inlined or attached as a dataset or utility script.
-3. Read `information-sharing-policy.md` before making any Kaggle kernel, dataset, model, or downloaded output public.
-4. Set `competition_sources`, `dataset_sources`, `kernel_sources`, or `model_sources` in metadata so Kaggle can mount required inputs.
-5. Request an accelerator in metadata and/or the push command when needed.
-6. Push and run the kernel.
-7. Poll the kernel status until complete or failed.
-8. Download output files.
-9. Read `experiment_log.json`, `metrics.jsonl`, and the artifact manifest.
-10. If this is the final consumer or final single-kernel run, submit the produced file or kernel/version to Kaggle for scoring, then retrieve the submission status/score before deciding the work is complete.
-11. If scoring fails with a vague code-competition error, read `code-competition-debugging.md`, patch the final kernel, rerun, and resubmit until scored or concretely blocked.
-
-For staged architectures (several producers feeding one consumer through private artifact datasets), follow `kaggle-pipeline.md`.
-
-Useful commands:
+Typical CLI commands, subject to current help:
 
 ```bash
-kaggle kernels push -p kaggle_kernels/EXPERIMENT --accelerator NvidiaTeslaT4
-kaggle kernels status USERNAME/KERNEL_SLUG
-kaggle kernels output USERNAME/KERNEL_SLUG -p remote_outputs/RUN_ID -o
+kaggle kernels push -p kaggle_kernels/EXPERIMENT
+kaggle kernels status USER/KERNEL_SLUG
+kaggle kernels output USER/KERNEL_SLUG -p remote_outputs/RUN_ID -o
 ```
 
-Verify exact command help in the current environment with `kaggle kernels push --help`, because Kaggle CLI behavior can change.
+## Retrievable Evidence
 
-## Required Remote Logs
+Use existing structured project logs when they carry the needed information. The scaffold defaults are:
 
-Every offloaded run should write these files to the Kaggle working directory:
+- `experiment_log.json`: run ID, timestamp, config, code/data versions, task/split, hardware, elapsed time, error state, metric summary, and artifact paths.
+- `metrics.jsonl`: relevant fold/epoch/stage measurements; do not invent metrics for a run that has none.
+- `artifacts_manifest.json`: produced files, schemas, versions, and checksums when useful.
+- Wrapper stdout/stderr and failure logs when available.
 
-- `experiment_log.json`: one JSON object with run ID, timestamp, config, git commit if known, fold, model, metric summary, hardware, data paths, elapsed time, error state, and artifact paths.
-- `metrics.jsonl`: one JSON object per fold/epoch/stage with metric name, value, fold, epoch, step, and timestamp.
-- `artifacts_manifest.json`: model files, OOF predictions, test predictions, submission files, plots, and any compressed output archives.
-- `stdout.txt` and `stderr.txt` when a wrapper subprocess is used.
+Emit a failure summary if the process can recover; a hard OOM may leave only platform logs. Log enough to distinguish a training run, inference run, and smoke scaffold.
 
-For OOM or runtime failures, still emit an `experiment_log.json` with `status: "failed"` and the exception summary if the process can recover.
+## Retrieval Checks
 
-## Retrieval Discipline
+- Retrieve machine-readable artifacts via CLI, connector, or supported download; browser text alone does not establish artifact contents.
+- Keep outputs under an identifiable run directory such as `remote_outputs/RUN_ID/`.
+- Compare the remote validation to the relevant local baseline when available. For predictive inference, verify row count, IDs, ordering, labels, values, and the actual output file; for agents, use episode/action evidence.
+- Retrieve held-out predictions and split metadata before blending supervised models. Reused stage outputs need explicit source/version identity; see `kaggle-pipeline.md`.
 
-- Never rely only on the browser notebook output. Download artifacts with `kaggle kernels output`.
-- Keep downloaded outputs under `remote_outputs/RUN_ID/`.
-- Compare remote metrics to local CV before submitting.
-- If the run was for inference only, verify row count, ID order, probability clipping, label order, and submission filename after download.
-- If the remote run trains fold models, retrieve OOF predictions and per-fold metrics before ensembling.
-- If a producer notebook output will be reused, create or version a private dataset from that output and record the dataset handle/version in the pipeline manifest before running consumers.
+## Metadata
 
-## Metadata Notes
+Inspect the current platform schema and the competition contract. Typical fields identify the kernel (`id`, `title`, `code_file`, `language`, `kernel_type`), privacy, network and accelerator settings, and attached input sources. Keep experiments private unless publishing is intentional and rules/license-safe (`information-sharing-policy.md`).
 
-Kaggle kernel metadata should include:
-
-- `id`: `USERNAME/KERNEL_SLUG`.
-- `title`: human-readable run name.
-- `code_file`: the `.py` script or `.ipynb` notebook.
-- `language`: `python`.
-- `kernel_type`: `script` or `notebook`.
-- `is_private`: usually `true` for competition experiments; make public only after a rules, license, and IP check.
-- `enable_gpu` / `enable_tpu`: `true` when using that accelerator.
-- `enable_internet`: `false` for anything that will be scored; `true` only for setup notebooks that download wheels or weights.
-- `machine_shape`: accelerator ID such as `NvidiaTeslaT4`, if available for the account/competition.
-- `competition_sources`, `dataset_sources`, `kernel_sources`, and `model_sources` as needed.
-
-Do not treat a successful `kaggle kernels push` as the end of the work. The end is the processed Kaggle competition submission and retrieved score/status, or a documented external blocker after the debugging loop has been attempted.
+A successful push is only a dispatch receipt. Report the requested stage's actual run result, and use `submission-endgame.md` when hosted scoring is in scope.

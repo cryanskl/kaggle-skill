@@ -1,13 +1,11 @@
 # Code Competition Debugging
 
-Use this reference when a Kaggle code competition submission fails, returns a vague scoring status, OOMs, times out, produces no output, or passes the visible notebook run but fails during hidden rerun/scoring.
+Use when a submission fails, OOMs, times out, or passes its visible run but fails during hosted rerun. This reference owns diagnosis and retries; `submission-endgame.md` owns completion states. Respect the requested stage and authorized time/compute/submission budget.
 
-Kaggle intentionally limits detailed error messages in code competitions to avoid hidden-test probing. Treat limited feedback as expected. Do not use repeated submissions to infer hidden data, labels, or private test properties; use submissions only to test genuine robustness fixes.
+## Evidence-Driven Loop
 
-## Debugging Loop
-
-1. Capture the observed failure: submission status, CLI output, kernel status, run/version ID, visible logs, elapsed time, and whether `submission.csv` was produced.
-2. Download available outputs and logs:
+1. Save the exact failure/status, command or connector request, kernel/submission version, elapsed time, logs, and available output. Separate visible execution, hosted rerun, and parsing/scoring failures.
+2. Retrieve available evidence, for example:
 
 ```bash
 kaggle kernels status USER/KERNEL_SLUG
@@ -15,67 +13,36 @@ kaggle kernels output USER/KERNEL_SLUG -p remote_outputs/RUN_ID -o
 kaggle competitions submissions COMPETITION_SLUG -v -q
 ```
 
-3. Classify the most likely failure mode using the taxonomy below.
-4. Patch the final consumer notebook/script defensively.
-5. Run a local smoke test and a Kaggle visible run.
-6. Resubmit the final file or kernel/version for scoring.
-7. Record the patch and result in `debug_attempts.jsonl` and `submission_receipt.json`.
-8. Repeat until scored or an external blocker prevents more retries.
+3. Form a concrete hypothesis from that evidence. A generic HTTP status or vague notebook error does not establish a particular cause or submission mode.
+4. Apply a targeted fix and exercise the relevant local/visible contract before another hosted attempt. Change one meaningful cause at a time when feasible.
+5. Retry only within the existing authorization and when a new fix or service-state change makes it informative. Record the attempt/result. Do not repeatedly resubmit unchanged code or exhaust quota to infer hidden data.
+6. Stop at the authorized phase or agreed budget/stopping rule, and report evidence with `submission-endgame.md`. If no supported next fix remains, explain what new information or scope is needed rather than repeating an unchanged attempt. Do not label an internal failure an external blocker or repeat an approval already supplied.
 
-## Failure Taxonomy
+## Diagnose The Contract That Failed
 
-- Missing output: `submission.csv` not written, wrong path, wrong working directory, file written after an exception, or output only exists in a subfolder Kaggle does not collect.
-- Schema mismatch: wrong columns, wrong order, duplicate IDs, missing IDs, extra index column, bad label names, wrong class order, invalid probability range, NaN/inf values, or row count mismatch.
-- Training-data fallback: the visible test folder was empty or tiny, the code fell back to training files, and the submission contains training IDs. Fall back to a `sample_submission.csv` placeholder instead, never to training data.
-- Hidden data shape: assumptions from public data fail on hidden data, such as fixed image size, fixed text length, fixed number of files, fixed batch size, unseen classes/categories, or empty groups.
-- Path/input mismatch: hard-coded `/kaggle/input/...` paths (the mount may be `/kaggle/input/SLUG/` or `/kaggle/input/competitions/SLUG/`), dataset slug changes, nested dataset folders, producer artifact version drift, missing model files, case-sensitive filenames, or filename columns that already include the extension (`file.ogg.ogg`).
-- Internet/package issue: internet disabled, pip install attempted during scoring, package version differs, private dataset/model not attached, or imported module unavailable.
-- Resource failure: OOM, disk full, timeout, CPU/GPU mismatch, too many workers, large batch size, uncompressed intermediates, model ensemble too large, slow test-time augmentation, or a `kaggle_evaluation` per-batch time limit exceeded because models were loaded inside `predict`.
-- Statefulness: notebook relies on previous cell state, hidden global variables, mutable caches, random nondeterminism, or files generated in an earlier run but not in the scoring run.
-- Competition API misuse: the competition expects a `kaggle_evaluation` inference server, a specific iterator, prediction format, or final write location, and the notebook writes a file instead (see `kaggle-pipeline.md`).
-- Silent failures: exceptions swallowed with bare `except: continue`, so feature extraction returns zero rows or a model silently predicts constants. Log the file and exception type for every skipped item and assert non-empty outputs.
-- External-data/rules issue: producer artifacts, pretrained weights, internet downloads, or private datasets are not allowed or not attached according to competition rules.
+| Failure class | Evidence to inspect |
+| --- | --- |
+| Output/format | Required file, archive, server response, path, root layout, IDs/order, schema, labels, NaN/inf, expected counts |
+| Visible/hidden inputs | Missing mount vs legitimately empty sample/group; never substitute training rows for test rows; follow `kaggle-pipeline.md` for documented placeholder/gateway behavior |
+| Hidden shape | Variable image/text sizes, batch lengths, unseen categories, optional columns, valid empty groups |
+| Paths/version drift | Actual mounts, nested folders, case/extension handling, attached artifact versions, missing weights/manifests |
+| Dependencies/network | Scoring network rules, compatible packages, mounted code/models, import/version failures |
+| Resources | Cold/warm timing, memory/disk, batches/workers, model count, TTA, callback initialization and per-batch limits |
+| State | Dependence on earlier interactive cells or unpersisted files; uncontrolled random or mutable state across requests |
+| API mismatch | Wrong scoring path: file instead of server, unsupported callback/iterator, wrong archive; use the official starter |
+| Silent failure | Swallowed exceptions or skipped records; log affected items and validate expected counts rather than blanket non-empty assertions |
+| Rules | Required data/model/code source disallowed or unavailable under the competition terms |
 
-## Defensive Patches
+## Test Only Relevant Safeguards
 
-Add these safeguards to the final consumer before resubmission:
+Use public or synthetic inputs to reproduce the suspected failure: boundary sizes, optional fields, valid empty groups, or schema round trips as applicable. Log stage, shapes, counts, dtypes, artifact identity, and the actual exception; fail clearly when required inputs are absent.
 
-- Centralize paths, discover them with `os.walk('/kaggle/input')`, and print what was found.
-- Validate all attached datasets, producer manifests, model files, and expected columns before inference.
-- Add public-data and synthetic hidden-like smoke tests for empty files, unseen categories, missing optional columns, odd image sizes, long/empty text, tiny batches, and one-row batches.
-- Wrap inference stages with concise logging that records stage start/end, shapes, counts, dtypes, memory estimates, and artifact paths.
-- Fail early with actionable messages when required artifacts are missing.
-- Always write `submission.csv` atomically to the expected directory.
-- Sanitize predictions: no NaN/inf, valid label set, valid probability range, expected row count, expected ID set/order.
-- Reduce resource pressure: smaller batch size, fewer workers, fp16/bfloat16 if safe, memory cleanup between models, model-by-model inference, compressed artifacts, and limited TTA.
-- Avoid hidden-state notebook behavior by using a single script-style entry point for scoring logic.
-- Disable network-dependent setup in scoring paths; vendor wheels and attach required code/model/data as datasets (`kaggle-pipeline.md`, Offline Dependencies).
-- For inference servers, load every model before `serve()` and time one `predict` call locally against the per-batch limit.
+For file-output contracts, write atomically and reload through the expected reader. For inference servers, test the documented lifecycle, callback results, and cold/warm timing; a CSV is not automatically required. For model/adapter contracts, inspect the actual archive and metadata.
 
-## Retry Discipline
+Reduce resource pressure based on measurement. Smaller batches, fewer workers, lower precision, sequential model loading, or limited TTA are possible treatments, not requirements for every failure. When network access is forbidden, validate attached compatible offline dependencies (`kaggle-pipeline.md`).
 
-- Make one hypothesis-driven patch per retry when possible.
-- Preserve each submitted kernel/version and `debug_attempts.jsonl` entry.
-- Avoid leaderboard probing. A retry should fix robustness, schema, path, dependency, or resource handling.
-- If the competition's daily submission quota is low, run extra visible Kaggle kernel tests before spending another scoring attempt.
-- If the error remains vague after several genuine fixes, summarize attempted fixes and ask the user whether to spend another submission attempt.
+## Attempt Record
 
-## Debug Log Schema
+Reuse the project's retry log or append `debug_attempts.jsonl` records with run/attempt ID, kernel/version, observed failure, evidence-backed hypothesis, patch, test, elapsed cost, and result. Preserve each submitted version and fallback artifact.
 
-Append one JSON object per attempt to `debug_attempts.jsonl`:
-
-```json
-{
-  "run_id": "exp_042",
-  "attempt": 2,
-  "kernel": "user/exp-042-final",
-  "kernel_version": "12",
-  "submission_status": "Notebook Threw Exception",
-  "observed_error": "limited Kaggle code competition error",
-  "suspected_failure_class": "resource failure",
-  "patch": "reduced batch size and disabled TTA",
-  "result": "pending"
-}
-```
-
-When an attempt scores, copy the final status and public score into `submission_receipt.json` and the pipeline manifest.
+A hosted attempt should test a genuine schema, path, dependency, resource, or robustness fix, not hidden labels or test properties. After a result arrives, record its observed status/score in the orchestrator's submission receipt and staged pipeline record when present. A runtime cannot produce its own future hosted receipt.

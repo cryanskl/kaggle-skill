@@ -1,101 +1,39 @@
 # Ensembling And Reproducibility
 
-## Project Layout
+Use the validation definitions in `cross-validation-and-metrics.md`: either leakage-safe OOF predictions or an independent holdout can support model comparison. Interactive agents use their episode workflow instead.
 
-A practical competition layout:
+## Artifacts By Run Role
 
-```text
-input/
-notebooks/
-src/
-models/
-oof/
-submissions/
-logs/
-configs/
-kaggle_kernels/
-kaggle_datasets/
-remote_outputs/
-```
+Keep the project's existing layout. Common locations include `input/` for immutable downloads, `processed/` for derived data, `models/`, `submissions/`, and `logs/`; directory names are conventions, not requirements.
 
-Keep raw downloaded data in `input/` and treat it as read-only. Put repeatable training code in `src/`; use notebooks for EDA, visual checks, and quick diagnostics.
+Every run needs enough provenance to identify code/config, input versions, validation units/splits when relevant, outcome, and artifact paths. Save additional artifacts according to its role:
 
-## Script Pattern
+- Training: checkpoint/config, preprocessing or label mappings, and features needed to reproduce inference.
+- Validation or model selection: held-out predictions with row/group IDs and coverage, metric/aggregation, and comparison evidence.
+- Inference or submission: exact output and writer/version; record hosted receipts only when a submission occurred.
+- Remote or staged work: retrievable logs and artifact contracts; use `kaggle-pipeline.md` for producer/consumer manifests and handoffs.
 
-Prefer command-driven training:
+Use run IDs and deterministic paths, record relevant seeds/library versions, preserve row identity, and avoid hidden notebook state. Failed experiments need the same provenance as successes, with rejection reasons and evidence that would justify reopening them. A feature or diagnostic run need not fabricate checkpoints, test predictions, or a submission file.
 
-```bash
-python src/train.py --fold 0 --model lgbm --config configs/lgbm.yaml
-python src/predict.py --model-dir models/lgbm_fold0 --output submissions/lgbm_fold0.csv
-```
+## Safe Blending
 
-Keep model dispatch separate from training loops when many models share the same dataset and metric. Save enough metadata that another run can reproduce the exact artifact.
+1. Evaluate members on comparable leakage-safe held-out predictions. Audit upstream exposure and missing coverage before combining them.
+2. Use prediction correlation and error overlap as redundancy diagnostics, not fixed rejection thresholds or proof of shared lineage. A correlated or weaker individual model can still improve a blend.
+3. Start with a strong single-model baseline and simple combinations. Greedy addition is one inexpensive search option; use a limited alternative weight search when justified. Tune weights on held-out selection data, not public leaderboard scores.
+4. Compare the complete blend with the strongest applicable single model using the declared metric, group risks, uncertainty, and runtime budget. Do not include a member merely because it differs or helps one cluster. Prefer the simpler candidate when the expected benefit is not credible; independently confirm selected gains where feasible.
 
-## Required Artifacts
+Simple or weighted averaging is a useful starting point for compatible outputs. Rank transforms can suit rank-based metrics; stacking is useful when validation data and runtime support fitting a meta-model. Keep an error/disagreement report when it helps explain the choice rather than requiring multiple models by default.
 
-For each run, save:
+## Stacking And Holdout Blending
 
-- Config/params.
-- Fold assignments or fold source file path.
-- Per-fold metric and mean/std.
-- OOF predictions.
-- Test predictions per fold and averaged test predictions.
-- Feature list and categorical column list.
-- Model files or checkpoints.
-- Submission file.
-- Kaggle submission receipt/status and public score after scoring.
-- Remote run logs and downloaded Kaggle outputs when compute was offloaded.
-- Pipeline manifests and intermediate Kaggle dataset handles/versions for multi-notebook runs.
+Fit a stacker on base predictions generated without fitting those base models on the corresponding evaluation labels. This can use cross-fitted OOF predictions or a separate meta-training holdout. Preserve the same group/time boundaries as the underlying task.
 
-## Safe Blending Workflow
+Evaluate the fitted stacker on a further untouched set or a suitable nested/cross-fitted procedure. Fitting and scoring the meta-model on the same level-1 rows is not independent evidence, and OOF base predictions alone do not make the meta-model's fitted score OOF. When budget limits a complete assessment, label that limitation rather than claiming end-to-end generalization.
 
-Ensembles help when the members' errors are uncorrelated; they hurt when members are near-duplicates, when a weak member dilutes a strong one, or when weights are tuned on the public leaderboard.
-
-1. Score each candidate independently on OOF: mean, fold std, and where it fails.
-2. Check pairwise OOF prediction correlation (Pearson or Spearman) and error overlap as redundancy diagnostics, not a fixed rejection threshold or proof of shared lineage. Test whether a correlated member still improves the real blend metric on valid independent evidence.
-3. Start from the best single model. The blend must beat it on OOF or it is not used.
-4. Add candidates greedily: add the next best, re-score the OOF blend, keep it only if the score improves; a member that hurts every combination is dropped regardless of its standalone score.
-5. Search weights on OOF only, with a small search space. Never tune weights on public LB scores.
-6. Submit the blend only if it beats the best single model on OOF; otherwise submit the single model.
-
-Method choice:
-
-- Simple average: diverse members of similar quality.
-- Weighted average: members of different quality.
-- Rank average: rank-based metrics such as AUC, or members with different calibration.
-- Geometric mean: probabilities that need mild recalibration.
-- Stacking: many members and enough validation data (see below).
-
-Two or three diverse members usually beat ten correlated ones. Keep a model-correlation or disagreement report in the final consumer for staged architectures.
-
-## Stacking
-
-Stack only with OOF base predictions:
-
-1. Train base models on K-1 folds and predict the held-out fold.
-2. Concatenate OOF base predictions into a level-1 train matrix.
-3. Average each base model's test predictions across folds for the level-1 test matrix.
-4. Train the stacker on the level-1 train matrix using the same or a nested validation plan.
-
-Good stackers are often simple: logistic regression, ridge, linear models, shallow boosting, or constrained weighted averages. Complex stackers overfit quickly.
-
-Blending with a holdout set is stacking with one split instead of full OOF folds. Use it when runtime is limited, but prefer OOF stacking when data is scarce.
-
-## Reproducibility Guardrails
-
-- Set seeds for Python, NumPy, model libraries, and deep-learning frameworks.
-- Log package versions and hardware assumptions when results are sensitive.
-- Use deterministic data paths and run IDs.
-- Avoid hidden notebook state for anything that affects submissions.
-- Keep train/test row order explicit through ID columns.
-- Version feature generation and preprocessing.
-- Make every submitted file traceable to code, config, data, and OOF score.
-- Make every Kaggle score traceable to the exact submission file or kernel/version that produced it.
-- For Kaggle-offloaded runs, keep the pushed kernel folder, `kernel-metadata.json`, downloaded `experiment_log.json`, `metrics.jsonl`, and output artifacts together under `remote_outputs/RUN_ID/`.
-- For multi-notebook runs, keep producer dataset folders under `kaggle_datasets/` and final downloaded outputs under `remote_outputs/CONSUMER_RUN_ID/`.
+Simple regularized or constrained meta-models are often adequate. Full-data base-model refits for final inference are compatible with earlier validation, but do not relabel their in-sample predictions as held-out. For final artifact submission and completion states, use `submission-endgame.md`.
 
 ## Replay At The Submission Boundary
 
-When adapting a public pipeline or changing postprocessing, keep an identifiable baseline version and compare local outputs with the actual submission-producing runtime on the same inputs, including the final writer. Use byte identity when determinism and serialization make it meaningful; otherwise declare numerical tolerances and compare IDs, schemas, and task-specific invariants. Agreement proves implementation consistency on those inputs, not model quality or hidden-test transfer.
+When adapting a public pipeline or changing postprocessing, keep an identifiable baseline and compare local outputs with the actual submission-producing runtime on the same inputs, including the final writer. Use byte identity when determinism and serialization make it meaningful; otherwise declare numerical tolerances and compare IDs, schemas, and task-specific invariants.
 
-Record failed experiments with the same config, metric, and artifact provenance as successful ones, including rejection reasons and evidence that would justify reopening them. Keep untested hypotheses distinct from measured negative results.
+Agreement proves implementation consistency on those inputs, not model quality or hidden-test transfer. Make the eventual submitted artifact traceable to the relevant validation, code/config/data versions, and hosted receipt without repeating pipeline handoff requirements here.

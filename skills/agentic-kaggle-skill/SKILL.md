@@ -13,17 +13,19 @@ Choose the request mode before executing the steps below. Predictive ML uses fol
 
 ## Setup Checklist (Execution Requests)
 
-Run these before any modeling:
+For execution requests, check the setup needed by the chosen mode before modeling. Interactive tasks may use an environment and replays rather than prediction tables; do not download or scaffold unused inputs.
 
 1. Kaggle CLI and credentials: `kaggle --version`. Credentials come from `~/.kaggle/kaggle.json` (`chmod 600`) or the `KAGGLE_USERNAME`/`KAGGLE_KEY` environment variables. If missing, ask the user to create an API token at kaggle.com → Settings → API and place the file; do not ask for the token contents in chat.
 2. Rules acceptance: the user must accept the competition rules once on the website. A `403 Forbidden` from `kaggle competitions download` or `submit` almost always means the rules are not accepted yet.
-3. Data: `kaggle competitions files -c SLUG`, then `kaggle competitions download -c SLUG -p input/` and unzip into `input/`. Keep `input/` read-only.
+3. Data: `kaggle competitions files -c SLUG`, then `kaggle competitions download -c SLUG -p input/` and unzip into `input/`. Preserve downloaded raw files; write derived tables and fold assignments under `processed/` or the project's established derived-data directory.
 4. Submission mode and budget: read the competition Overview, Evaluation, Data, and Rules pages (web fetch or the user's browser). Record the metric, the submission format, whether it is a file submission or a code competition (notebook rerun on hidden data), run-time/GPU/internet limits, and this competition's daily submission limit. Quotas differ per competition; plan scoring attempts against the actual limit and count today's attempts with `kaggle competitions submissions SLUG`.
 5. Workspace: `python3 <skill-dir>/scripts/scaffold_competition.py --root .` when no project layout exists.
 
-## Operating Loop
+## Predictive ML Execution Loop
 
-1. Classify the task: binary, multiclass, multilabel, regression, ranking, image, segmentation, text, time series, grouped entities, simulation/game agent, or a hybrid. Classify the submission path: classic file submission, code competition, or model/adapter submission.
+This loop and Choose The Path apply to predictive ML. Interactive agents follow `references/simulation-game-agents.md`; the shared setup, hygiene, and completion conditions still apply. Analysis requests use the source/artifact audit described above.
+
+1. Classify the predictive task: binary, multiclass, multilabel, regression, ranking, image, segmentation, text, time series, grouped entities, or a hybrid. Classify the submission path: classic file submission, code competition, or model/adapter submission.
 2. Scout public intel (see Competition Intelligence) before major architecture choices; treat it as clues, not authority.
 3. Reproduce the competition metric locally, including clipping, transforms, averaging mode, thresholds, and sample weights.
 4. Design folds before feature engineering (see Validation Choices). Save a `fold` column into the training data so every experiment shares one comparison surface.
@@ -33,20 +35,20 @@ Run these before any modeling:
 8. Track for every run: local CV (mean and fold std), Kaggle run status, submission score, public LB, seed, code version, data version, artifact paths, and private-LB risk notes.
 9. Ensemble only with OOF predictions produced without in-fold leakage.
 
-## Choose The Path
+## Choose The Path (Predictive ML)
 
 Decide after the baseline exists, and revisit whenever the evidence changes.
 
-**Simple path** (default): tabular or modest text/image data, file submission, and local compute or a single Kaggle notebook is enough.
+**Simple path** (default): local compute or one Kaggle training/inference notebook is enough. A required hidden-test notebook or a GPU can still fit this path; follow its scoring contract in `references/kaggle-pipeline.md`.
 
 - Work locally, or in one Kaggle notebook when the data or GPU lives there.
 - Folds → boosting or TF-IDF/pretrained baseline → feature and model iteration → blend of a few diverse, individually validated models → `kaggle competitions submit`.
-- Stay on this path until an escalation trigger fires. A well-tuned single model family plus a small OOF-validated blend wins many competitions; do not build a pipeline for its own sake.
+- Stay on this path while a single run remains practical. Escalate when reusable stages or independently useful models justify the added handoff and evaluation cost.
 
-**Staged path**: switch when any of these hold.
+**Staged path**: use when evidence and budget justify reusable or independently evaluated stages, for example:
 
-- The competition is a code competition (notebook rerun against hidden data) or requires a model/adapter submission.
-- Training or inference needs a GPU/TPU, large memory, or Kaggle-only data mounts.
+- Expensive training produces checkpoints or features that several downstream runs can reuse.
+- Several model families or feature producers provide validated diversity and can be compared or blended with OOF evidence.
 - The data is multimodal, large, or expensive to featurize, or the metric rewards calibration, thresholding, or postprocessing that benefits from several model families.
 - CV plateaus while fold variance and error analysis show recoverable errors, or public solutions and discussions show that strong entries use multi-model pipelines.
 
@@ -57,7 +59,7 @@ Staged-path shape (details in `references/kaggle-pipeline.md`):
 3. One final consumer notebook attaches those datasets, loads from `/kaggle/input/...`, validates manifests, blends/stacks on OOF predictions, writes `submission.csv`, and is the only scoring boundary.
 4. Submit the consumer kernel version (`-k USER/KERNEL -v VERSION`) for code competitions, or its `submission.csv` for file competitions.
 
-Do not wait for the user to ask for sophistication. Once the baseline is trustworthy and a trigger fires, plan and execute the staged path, keep it gated by OOF evidence and artifact manifests, and report the cost (Kaggle GPU hours, submission attempts used) in the run log.
+Once the baseline is trustworthy, test justified architecture improvements within the available budget. Remote execution and multi-stage architecture are separate choices: needing a GPU or a scoring notebook alone does not require several producers. Keep staged work gated by OOF evidence and artifact manifests, and report compute and submission cost.
 
 ## Competition Intelligence
 
@@ -90,7 +92,7 @@ Pulled notebooks are scouting material: extract the validation scheme, model fam
 - `references/kaggle-pipeline.md`: submission modes, code competitions, `kaggle_evaluation` inference servers, producer/consumer notebooks, private artifact datasets, the pipeline manifest, and `kagglehub`.
 - `references/advanced-notebook-architecture.md`: when and how to escalate to multi-producer architectures.
 - `references/ensembling-and-reproducibility.md`: project layout, OOF artifacts, safe blending/stacking, repeatability.
-- `references/submission-endgame.md`: submitting, quota, score retrieval, and the final report; read before stopping.
+- `references/submission-endgame.md`: execution completion states, submission budget, hosted results, and final reports; includes retaining an existing scored incumbent when no upgrade qualifies within the defined budget. Analysis requests do not require scoring.
 - `references/code-competition-debugging.md`: failed, timed-out, OOM, or vaguely failing submissions.
 - `scripts/scaffold_competition.py`: create a competition workspace.
 - `scripts/make_folds.py`: add a fold column to a training CSV.
@@ -109,7 +111,7 @@ For execution requests, do not stop at a plan, scaffold, trained model, notebook
 - For a bounded improvement request with an existing scored incumbent, the defined budget/stop rule was reached and no candidate qualified. Preserve the incumbent, report rejection evidence and reopening conditions, and do not submit a weaker replacement merely to obtain a new receipt.
 - A concrete external blocker prevents scoring: missing Kaggle credentials, rules not accepted, quota exhausted after retry attempts, competition closed, scoring disabled, required manual UI-only action, unavailable kernel version, or Kaggle service failure. Record the exact blocker and the next command/action needed.
 
-## Validation Choices
+## Validation Choices (Predictive ML)
 
 - Balanced classification: `StratifiedKFold`.
 - Imbalanced classification: stratified folds plus metric-sensitive thresholding or class weights.
@@ -119,11 +121,9 @@ For execution requests, do not stop at a plan, scaffold, trained model, notebook
 - Images from the same subject or scene: group by subject/scene before augmentation.
 - Text with duplicated sources, authors, questions, products, or prompts: group by source key.
 - Tiny data: repeated folds or more folds, but keep the final model selection discipline strict.
-- Simulation/game competitions: split replay training data by complete episodes; validate executable policies through representative interactive matches, paired seeds/seats, and separate confirmation. Fixed replay opponents, proxy clones, and transient ratings provide narrower evidence; see `references/simulation-game-agents.md`.
-
 Compare mean fold score and fold variance, not only the best fold. Treat a public LB jump that disagrees with CV as a validation question before treating it as a modeling victory.
 
-## Modeling Priorities
+## Modeling Priorities (Predictive ML)
 
 - For tabular competitions, prefer tree boosting first unless the data is mostly sparse text or high-cardinality categorical interactions. Add CatBoost when categorical columns are central.
 - For linear models and neural networks, scale numeric features and encode categoricals carefully.
@@ -161,7 +161,7 @@ Create stratified folds:
 ```bash
 python3 <skill-dir>/scripts/make_folds.py \
   --input input/train.csv \
-  --output input/train_folds.csv \
+  --output processed/train_folds.csv \
   --target target \
   --strategy stratified \
   --n-splits 5
@@ -172,7 +172,7 @@ Create grouped folds:
 ```bash
 python3 <skill-dir>/scripts/make_folds.py \
   --input input/train.csv \
-  --output input/train_folds.csv \
+  --output processed/train_folds.csv \
   --target target \
   --group-col patient_id \
   --strategy group

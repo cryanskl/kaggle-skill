@@ -11,8 +11,8 @@
   <strong>Turn AI agents into Kaggle teammates</strong><br>
   <strong>让 AI 智能体成为你的 Kaggle 队友</strong>
   <br/>
-  <sub>Reusable workflow for validation, modeling, Kaggle execution, debugging, ensembling, and scored submission.</sub><br>
-  <sub>覆盖验证、建模、Kaggle 执行、调试、集成和最终得分提交的可复用工作流。</sub>
+  <sub>Reusable workflows for predictive ML, simulation agents, scored execution, and evidence-based post-mortems.</sub><br>
+  <sub>覆盖预测建模、仿真对战智能体、评分执行与证据复盘的可复用工作流。</sub>
 </p>
 
 <p align="center">
@@ -67,7 +67,7 @@ Transform Kaggle work from scattered manual iteration into an agent-assisted com
 | --- | --- |
 | Manual notebook analysis 手动分析 notebook | Agent scouts public notebooks and discussions as signals 智能体将公开 notebook 和讨论作为线索 |
 | Guess why submissions fail 猜测提交失败原因 | Agent diagnoses format, path, runtime, and hidden rerun issues 智能体诊断格式、路径、运行时和隐藏重跑问题 |
-| Try random improvements 随机尝试改进 | Fold-driven validation and OOF-safe iteration 基于 fold 和 OOF 的稳健迭代 |
+| Try random improvements 随机尝试改进 | Predictive folds/OOF or interactive episode validation 按任务使用 fold/OOF 或互动整局验证 |
 | One overloaded notebook 一个超载 notebook | Producer/consumer pipeline with private artifact datasets 使用私有 artifact dataset 的生产者/消费者流水线 |
 
 Core capabilities:
@@ -76,8 +76,12 @@ Core capabilities:
 
 - Read Kaggle rules, data terms, metric, submission format, and scoring mode before modeling.
   建模前先阅读竞赛规则、数据条款、指标、提交格式和评分模式。
-- Build metric-correct baselines with stable folds and out-of-fold predictions.
-  构建指标正确、fold 稳定、带 OOF 预测的 baseline。
+- Build metric-correct predictive baselines with stable folds and out-of-fold predictions.
+  为预测任务构建指标正确、fold 稳定、带 OOF 预测的 baseline。
+- Build simulation agents with replay action contracts, executable BC/RL policies, and complete-game evaluation against interactive opponents.
+  为仿真对战建立回放动作契约、可执行 BC/RL 策略，并以互动对手的完整比赛验证。
+- Audit solution writeups and actual team artifacts for requested post-mortems without launching training or submissions.
+  按复盘请求审核方案原文与团队实际产物，交付分析，不启动训练或提交。
 - Use public notebook and discussion intelligence as scouting signals, not copied source.
   将公开 notebook 和讨论作为侦察信号，而不是直接复制来源。
 - Offload heavy work to Kaggle notebooks/scripts when local compute is insufficient.
@@ -88,8 +92,8 @@ Core capabilities:
   处理代码竞赛隐藏重跑失败、模糊评分错误、超时和 OOM。
 - Track reproducibility artifacts, run logs, score receipts, and ensemble evidence.
   记录可复现 artifact、运行日志、提交回执和集成证据。
-- Continue toward a scored Kaggle submission or record a concrete blocker.
-  持续推进到 Kaggle 得分提交，或记录明确阻塞原因。
+- For execution, collect hosted scoring evidence or record a concrete blocker; retain an existing scored incumbent when no upgrade passes within a defined improvement budget.
+  执行任务收集托管评分证据或明确阻塞；已有评分版本的提升任务在预算内无合格升级时保留原版。
 
 ## Install / 安装
 
@@ -188,6 +192,7 @@ kaggle-skill/
         │   ├── information-sharing-policy.md
         │   ├── competition-intel.md
         │   ├── cross-validation-and-metrics.md
+        │   ├── simulation-game-agents.md
         │   ├── tabular-workflow.md
         │   ├── image-text-workflow.md
         │   ├── kaggle-offload.md

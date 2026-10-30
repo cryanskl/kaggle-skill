@@ -27,10 +27,12 @@ Submit the qualified agent using the competition's actual contract. Retrieve hos
 ## Submission Budget
 
 - Each competition sets its own daily submission limit; read it from the competition page and count today's attempts with `kaggle competitions submissions SLUG`.
-- Spend scoring attempts on validated improvements. Use visible kernel runs, OOF metrics, and local checks to catch format or runtime problems first.
-- When only a few attempts remain, prefer the OOF-best candidate over a public-LB-best candidate whose CV does not support it.
+- Spend scoring attempts on validated improvements. Use visible runs and local contract checks before consuming scoring attempts; predictive tasks use CV/OOF evidence, while interactive tasks use complete-game confirmation.
+- When only a few attempts remain, prefer the candidate supported by the relevant validation over a transient public-LB leader. For interactive agents, include opponent coverage and active-slot eviction risk.
 
-## Pre-Submission Checks
+## Prediction File Checks
+
+These checks apply to prediction-file submissions. Agent packages use Interactive Agent Flow; code/model submissions also follow `kaggle-pipeline.md` for their actual scoring contract.
 
 - Rules accepted and credentials work.
 - The file exists, the row count matches `sample_submission.csv`, IDs and order are correct, required columns exist, labels/probabilities are in the expected format, and values are clipped or rounded only when the metric or competition requires it.
@@ -67,7 +69,7 @@ Determine `VERSION` from the kernel status/output metadata or the Kaggle UI. If 
 
 ## Score Interpretation
 
-- For simulation, game-agent, and episode-averaged competitions, early scores are inflated and noisy: the rating converges over hours as more episodes run. Submit early to start evaluation, and do not make decisions on a score younger than a few hours; a drop from the initial peak is normal.
+- For simulation, game-agent, and episode-averaged competitions, early ratings or estimates may be unstable in either direction. Interpret them using episode count, opponent coverage, rating uncertainty when available, and observation time; a fixed age in hours does not establish convergence. Start hosted evaluation once the candidate passes the relevant checks, accounting for active-slot eviction and remaining budget; do not replace a scored incumbent merely to obtain an older rating.
 - For ordinary competitions, a public score that disagrees with CV is a validation question (split choice, metric implementation, train/test drift) before it is a modeling result.
 - A score drop after a code change: confirm the new kernel version actually ran and completed, compare the two submission files, then look at the model.
 

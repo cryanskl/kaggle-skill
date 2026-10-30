@@ -4,15 +4,17 @@ Use this reference when a Kaggle competition is likely to benefit from a stronge
 
 ## When To Escalate
 
-Proactively escalate after a metric-correct baseline exists when any of these are true:
+Consider a staged experiment after a metric-correct baseline exists when these signals suggest a useful gain:
 
 - Public notebook/discussion intel shows strong solutions using multiple models, external pretrained features, staged inference, stacking, pseudo-labeling, or custom postprocessing.
 - The data is multimodal, high-dimensional, large, grouped, time-based, image/text-heavy, or expensive to featurize.
 - A single baseline plateaus while fold variance and error analysis show recoverable errors.
 - The metric rewards calibration, ranking, thresholding, segmentation postprocessing, sequence aggregation, or ensembling.
-- GPU inference/training, embeddings, or fold models are too heavy for local execution.
+- Expensive embeddings or fold-model outputs can be reused across independently evaluated downstream experiments.
 
 Do not overcomplicate before the split, metric, submission format, and one reliable baseline are correct.
+
+These signals justify considering a staged experiment, not automatically creating several producers. Needing remote GPU execution or a hidden-test notebook alone can be handled by one kernel; add stages when artifact reuse or measured model diversity justifies their cost.
 
 ## Architecture Pattern
 
